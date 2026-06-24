@@ -394,31 +394,48 @@ export class Game {
       if (!input || !status) return;
       const url = input.value.trim();
       if (!url) { status.textContent = '⚠️ Ingresá una URL de YouTube'; return; }
-      status.textContent = '⏳ Descargando y analizando (puede tardar varios minutos)...';
-      status.className = 'yt-status loading';
+
+      // Intentar API primero, si falla mostrar comando
       try {
-        const name = url.includes('v=') ? url.split('v=')[1].split('&')[0] : 'song';
-        const resp = await fetch('/api/prepare', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, name }),
-        });
-        const result = await resp.json();
-        if (result.success) {
-          status.textContent = `✅ ${result.song} preparada!`;
-          status.className = 'yt-status success';
+        const probe = await fetch('/api/prepare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+        if (probe.ok) {
+          // API disponible
+          status.textContent = '⏳ Descargando y analizando (puede tardar varios minutos)...';
+          status.className = 'yt-status loading';
+          const result = await probe.json();
+          if (result.success) {
+            status.textContent = `✅ ${result.song} preparada!`;
+            status.className = 'yt-status success';
+            await this.loadSongList();
+            if (result.song) await this.selectSong(result.song);
+            div.remove();
+            this.showMenu();
+          } else {
+            status.textContent = `❌ Error: ${result.error}`;
+            status.className = 'yt-status error';
+          }
+          return;
+        }
+      } catch {}
+      // API no disponible (Vite dev server) → mostrar comando
+      const name = url.includes('v=') ? url.split('v=')[1].split('&')[0] : 'song';
+      status.innerHTML = `
+        ⚡ API no disponible en modo dev. Corré en la terminal:<br>
+        <code style="background:#0a0a1a;padding:6px 10px;border-radius:4px;display:inline-block;margin-top:6px;font-size:12px;">
+        npm run prepare-song "${url}" -- --name "${name}"
+        </code><br>
+        <span style="font-size:11px;color:#888;">Después de generar la canción, hace click en 🔄</span>
+        <button id="btn-refresh" style="margin-top:8px;background:#222255;border:1px solid #5555aa;color:#fff;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:monospace;">🔄 Recargar canciones</button>
+      `;
+      status.className = 'yt-status';
+      // Event listener para refresh
+      setTimeout(() => {
+        document.getElementById('btn-refresh')?.addEventListener('click', async () => {
           await this.loadSongList();
-          if (result.song) await this.selectSong(result.song);
           div.remove();
           this.showMenu();
-        } else {
-          status.textContent = `❌ Error: ${result.error}`;
-          status.className = 'yt-status error';
-        }
-      } catch (e: any) {
-        status.textContent = `❌ Error de conexión: ${e.message}`;
-        status.className = 'yt-status error';
-      }
+        });
+      }, 100);
     });
   }
 

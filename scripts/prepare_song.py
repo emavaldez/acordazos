@@ -265,8 +265,8 @@ def extract_notes(source_path, bpm, duration):
     pitches, magnitudes = librosa.piptrack(y=y, sr=sr, hop_length=512)
 
     times = librosa.frames_to_time(np.arange(pitches.shape[1]), sr=sr, hop_length=512)
-    energy_threshold = np.percentile(magnitudes[magnitudes > 0], 60) if np.any(magnitudes > 0) else 0.1
-    min_gap = 60.0 / bpm / 4 if bpm > 0 else 0.1
+    energy_threshold = np.percentile(magnitudes[magnitudes > 0], 40) if np.any(magnitudes > 0) else 0.05
+    min_gap = 60.0 / bpm / 6 if bpm > 0 else 0.08
 
     notes = []
     last_time = -1.0
@@ -354,9 +354,17 @@ def run_pipeline(url, custom_name=None):
     # 4. Acordes del bajo
     chords = extract_chords(stems.get("bass"), bpm, duration) if "bass" in stems else []
 
-    # 5. Notas de guitarra (o other)
+    # 5. Notas de guitarra + piano
     guitar = stems.get("guitar") or stems.get("other")
-    notes = extract_notes(guitar, bpm, duration)
+    notes_guitar = extract_notes(guitar, bpm, duration)
+    piano = stems.get("piano")
+    notes_piano = extract_notes(piano, bpm, duration) if piano else []
+    # Mezclar y deduplicar (ordenar por tiempo)
+    notes = sorted(notes_guitar + notes_piano, key=lambda n: n["time"])
+    # Si muy pocas, usar el mix completo como fallback
+    if len(notes) < 30:
+        log("Pocas notas detectadas, usando mix completo como fallback...")
+        notes = extract_notes(audio_path, bpm, duration)
 
     # 6. Copiar audio
     wav_copy = song_dir / "audio.wav"
