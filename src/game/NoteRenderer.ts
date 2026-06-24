@@ -19,7 +19,7 @@ export class NoteRenderer {
   // Configuración
   private readonly hudHeight: number = 65;
   private readonly keyboardHeight: number = 100;
-  private readonly noteScrollTime: number = 5; // segundos que tarda una nota en caer
+  private noteScrollTime: number = 5; // segundos que tarda una nota en caer
 
   // Rango Yamaha E333 (61 teclas: C2=36 a C7=96)
   private readonly minNote: number = 36;
@@ -100,6 +100,11 @@ export class NoteRenderer {
         whiteIndex++;
       }
     }
+  }
+
+  /** Cambia el tiempo de scroll (para control de velocidad) */
+  setScrollTime(seconds: number): void {
+    this.noteScrollTime = seconds;
   }
 
   /** Renderiza un frame */
@@ -273,21 +278,16 @@ export class NoteRenderer {
       ctx.shadowBlur = 14;
     }
 
-    // ── Pastillita (rectángulo muy redondeado) ──
-    const radius = Math.min(noteW / 2, h / 2, 8);
+    // ── Pastillita (roundRect) ──
+    const radius = Math.min(noteW / 2, h / 2, 10);
     ctx.fillStyle = this.noteColor;
     ctx.beginPath();
-    ctx.moveTo(noteX + radius, y);
-    ctx.arcTo(noteX + noteW, y, noteX + noteW, y + h, radius);
-    ctx.arcTo(noteX + noteW, y + h, noteX, y + h, radius);
-    ctx.arcTo(noteX, y + h, noteX, y, radius);
-    ctx.arcTo(noteX, y, noteX + noteW, y, radius);
-    ctx.closePath();
+    ctx.roundRect(noteX, y, noteW, h, radius);
     ctx.fill();
 
     // Borde brillante
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
     ctx.shadowBlur = 0;
@@ -324,15 +324,10 @@ export class NoteRenderer {
       const noteW = key.isBlack ? key.w * 0.9 : key.w * 0.8;
       const noteX = key.x + (key.w - noteW) / 2;
 
-      const radius = Math.min(noteW / 2, h / 2, 8);
+      const radius = Math.min(noteW / 2, h / 2, 10);
       ctx.fillStyle = this.chordColor;
       ctx.beginPath();
-      ctx.moveTo(noteX + radius, y);
-      ctx.arcTo(noteX + noteW, y, noteX + noteW, y + h, radius);
-      ctx.arcTo(noteX + noteW, y + h, noteX, y + h, radius);
-      ctx.arcTo(noteX, y + h, noteX, y, radius);
-      ctx.arcTo(noteX, y, noteX + noteW, y, radius);
-      ctx.closePath();
+      ctx.roundRect(noteX, y, noteW, h, radius);
       ctx.fill();
     }
 

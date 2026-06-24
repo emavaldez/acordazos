@@ -228,6 +228,128 @@ h1 {
   color: #666688;
 }
 
+.song-meta {
+  font-size: 11px;
+  color: #666688;
+}
+
+.song-entry.disabled {
+  cursor: default;
+  opacity: 0.5;
+  text-align: center;
+  padding: 20px;
+}
+
+.section-label {
+  display: block;
+  font-size: 10px;
+  color: #555577;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+/* Velocidad */
+.speed-control {
+  margin-bottom: 20px;
+}
+
+.speed-control label {
+  font-size: 12px;
+  color: #8888aa;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.speed-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.speed-btn {
+  background: #0d0d1f;
+  border: 1px solid #333366;
+  border-radius: 8px;
+  padding: 8px 18px;
+  color: #8888aa;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.speed-btn:hover {
+  border-color: #5555aa;
+  color: #ccccff;
+}
+
+.speed-btn.active {
+  background: #222255;
+  border-color: #6666ff;
+  color: #fff;
+}
+
+/* YouTube */
+.youtube-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #222244;
+}
+
+.youtube-row {
+  display: flex;
+  gap: 8px;
+}
+
+.yt-input {
+  flex: 1;
+  background: #0d0d1f;
+  border: 1px solid #333366;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 13px;
+  outline: none;
+}
+
+.yt-input:focus {
+  border-color: #6666ff;
+}
+
+.yt-input::placeholder {
+  color: #444466;
+}
+
+.yt-btn {
+  background: #222255;
+  border: 1px solid #5555aa;
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.yt-btn:hover {
+  background: #3333aa;
+}
+
+.yt-status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #8888aa;
+  min-height: 16px;
+}
+
+.yt-status.loading { color: #ffcc00; }
+.yt-status.success { color: #66ff88; }
+.yt-status.error { color: #ff3355; }
+
 /* Resultados */
 .results-card h2 {
   color: #8888aa;

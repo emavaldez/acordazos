@@ -23,8 +23,9 @@ export class Game {
   private score: ScoreManager;
   private hitDetector: HitDetector;
   private mode: GameMode = 'both';
+  private speed: number = 1; // 0.5 = mitad de velocidad, 1 = normal, 2 = doble
 
-  private currentSong: string = 'test-song';
+  private currentSong: string = '';
   private chart: ChartData | null = null;
   private songs: SongEntry[] = [];
 
@@ -66,11 +67,17 @@ export class Game {
   setMode(mode: GameMode): void { this.mode = mode; }
   getMode(): GameMode { return this.mode; }
 
+  setSpeed(speed: number): void {
+    this.speed = Math.max(0.25, Math.min(3, speed));
+    // Cambiar el scroll time en el renderer
+    this.renderer.setScrollTime(5 / this.speed);
+  }
+  getSpeed(): number { return this.speed; }
+
   async init(): Promise<void> {
     this.midiConnected = await this.midi.init();
     await this.audio.init();
     await this.loadSongList();
-    // Cargar la primera canción disponible
     if (this.songs.length > 0) {
       await this.selectSong(this.songs[0].name);
     }
@@ -79,7 +86,6 @@ export class Game {
   private async loadSongList(): Promise<void> {
     const discovered = await SongLoader.discoverSongs();
     this.songs = discovered.filter(s => s.chart !== null) as SongEntry[];
-    console.log(`🎸 ${this.songs.length} canciones disponibles`);
   }
 
   async selectSong(songName: string): Promise<void> {
@@ -91,12 +97,9 @@ export class Game {
     this.currentSong = songName;
     this.chart = chart;
 
-    // Cargar audio
     const audioUrl = SongLoader.getAudioUrl(songName, chart);
-    const loaded = await this.audio.load(audioUrl);
-    console.log(`🎵 Audio ${loaded ? 'cargado' : 'no disponible'}: ${audioUrl}`);
+    await this.audio.load(audioUrl);
 
-    // Resetear score
     const totalNotes = chart.notes.length + chart.chords.length;
     this.score = new ScoreManager(totalNotes);
   }
@@ -152,16 +155,20 @@ export class Game {
     }
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (!this.chart || this.running) return;
+
     this.gameTime = 0;
     this.score.reset();
     this.buildExpectedNotes();
     this.hitFeedbacks = [];
     this.running = true;
     this.lastFrameTime = performance.now();
-    this.audio.resumeContext();
+
+    // Iniciar audio (necesita gesto del usuario)
+    await this.audio.resumeContext();
     this.audio.play();
+
     this.loop();
   }
 
@@ -177,7 +184,9 @@ export class Game {
     const now = performance.now();
     const delta = (now - this.lastFrameTime) / 1000;
     this.lastFrameTime = now;
-    this.gameTime += delta;
+
+    // Avanzar tiempo del juego (multiplicado por speed)
+    this.gameTime += delta * this.speed;
 
     this.checkExpiredNotes();
 
@@ -231,33 +240,60 @@ export class Game {
       ? `✅ ${this.midi.getDeviceName() || 'Teclado MIDI conectado'}`
       : '⚠️ Sin teclado MIDI';
 
-    const songListHTML = this.songs
-      .map(s => `
+    const audioStatus = this.audio.loaded
+      ? `🔊 Audio cargado (${this.formatDuration(this.audio.getDuration())})`
+      : '🔇 Sin audio';
+
+    const songListHTML = this.songs.length > 0
+      ? this.songs.map(s => `
         <div class="song-entry ${s.name === this.currentSong ? 'active' : ''}"
              data-song="${s.name}">
           <span class="song-title">${s.chart.title}</span>
           <span class="song-meta">${s.chart.artist} · ${this.formatDuration(s.chart.duration)} · 🎸${s.chart.chords.length} 🎵${s.chart.notes.length}</span>
         </div>
-      `).join('');
+      `).join('')
+      : '<div class="song-entry disabled">🎵 No hay canciones. Prepará una con YouTube abajo.</div>';
 
     const div = document.createElement('div');
     div.innerHTML = `
       <div id="menu-overlay">
-        <div class="menu-card menu-wide">
+        <div class="menu-card">
           <h1>🎸 Acordazos</h1>
           <p class="subtitle">Guitar Hero con teclado MIDI real</p>
           <div class="midi-status">${midiStatus}</div>
+          <div class="midi-status audio-status">${audioStatus}</div>
+
+          <label class="section-label">CANCIONES</label>
           <div class="song-list">${songListHTML}</div>
+
           <div class="mode-selector">
-            <label>Modo de juego:</label>
+            <label>Modo:</label>
             <div class="mode-buttons">
               <button class="mode-btn ${this.mode === 'chords' ? 'active' : ''}" data-mode="chords">🎸 Acordes</button>
               <button class="mode-btn ${this.mode === 'notes' ? 'active' : ''}" data-mode="notes">🎵 Notas</button>
               <button class="mode-btn ${this.mode === 'both' ? 'active' : ''}" data-mode="both">🎸🎵 Ambos</button>
             </div>
           </div>
+
+          <div class="speed-control">
+            <label>Velocidad: <span id="speed-label">${this.speed.toFixed(1)}x</span></label>
+            <div class="speed-buttons">
+              <button id="speed-half" class="speed-btn">0.5x</button>
+              <button id="speed-normal" class="speed-btn active">1x</button>
+              <button id="speed-double" class="speed-btn">2x</button>
+            </div>
+          </div>
+
           <button id="btn-start" class="game-btn start-btn">▶ EMPEZAR</button>
-          <p class="hint">Conectá tu Yamaha E333 por USB y presioná START</p>
+
+          <div class="youtube-section">
+            <label class="section-label">🎬 PREPARAR DESDE YOUTUBE</label>
+            <div class="youtube-row">
+              <input type="text" id="yt-url" class="yt-input" placeholder="https://youtube.com/watch?v=..." />
+              <button id="btn-yt-prepare" class="yt-btn">Preparar</button>
+            </div>
+            <div id="yt-status" class="yt-status"></div>
+          </div>
         </div>
       </div>
     `;
@@ -266,10 +302,12 @@ export class Game {
     // Song selection
     div.querySelectorAll('.song-entry').forEach(el => {
       el.addEventListener('click', async () => {
-        const name = (el as HTMLElement).dataset.song!;
+        const name = (el as HTMLElement).dataset.song;
+        if (!name) return;
         div.querySelectorAll('.song-entry').forEach(e => e.classList.remove('active'));
         el.classList.add('active');
         await this.selectSong(name);
+        this.showMenu();
       });
     });
 
@@ -283,9 +321,49 @@ export class Game {
       });
     });
 
+    // Speed buttons
+    document.getElementById('speed-half')?.addEventListener('click', () => { this.setSpeed(0.5); div.remove(); this.showMenu(); });
+    document.getElementById('speed-normal')?.addEventListener('click', () => { this.setSpeed(1); div.remove(); this.showMenu(); });
+    document.getElementById('speed-double')?.addEventListener('click', () => { this.setSpeed(2); div.remove(); this.showMenu(); });
+
+    // Start button
     document.getElementById('btn-start')?.addEventListener('click', () => {
       div.remove();
       this.start();
+    });
+
+    // YouTube URL
+    document.getElementById('btn-yt-prepare')?.addEventListener('click', async () => {
+      const input = document.getElementById('yt-url') as HTMLInputElement;
+      const status = document.getElementById('yt-status');
+      if (!input || !status) return;
+      const url = input.value.trim();
+      if (!url) { status.textContent = '⚠️ Ingresá una URL de YouTube'; return; }
+      status.textContent = '⏳ Descargando y analizando (puede tardar varios minutos)...';
+      status.className = 'yt-status loading';
+      try {
+        const name = url.includes('v=') ? url.split('v=')[1].split('&')[0] : 'song';
+        const resp = await fetch('/api/prepare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, name }),
+        });
+        const result = await resp.json();
+        if (result.success) {
+          status.textContent = `✅ ${result.song} preparada!`;
+          status.className = 'yt-status success';
+          await this.loadSongList();
+          if (result.song) await this.selectSong(result.song);
+          div.remove();
+          this.showMenu();
+        } else {
+          status.textContent = `❌ Error: ${result.error}`;
+          status.className = 'yt-status error';
+        }
+      } catch (e: any) {
+        status.textContent = `❌ Error de conexión: ${e.message}`;
+        status.className = 'yt-status error';
+      }
     });
   }
 
