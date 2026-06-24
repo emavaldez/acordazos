@@ -35,6 +35,8 @@ export interface ChartData {
 
 export type GameMode = 'chords' | 'notes' | 'both';
 
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
 export type HitRating = 'perfect' | 'good' | 'miss' | 'none';
 
 export interface HitResult {

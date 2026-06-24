@@ -1,4 +1,4 @@
-import type { ChartData, GameMode } from '../types';
+import type { ChartData, GameMode, Difficulty } from '../types';
 import { MIDIManager } from '../midi/MIDIManager';
 import { AudioManager } from '../audio/AudioManager';
 import { NoteRenderer } from './NoteRenderer';
@@ -23,6 +23,7 @@ export class Game {
   private score: ScoreManager;
   private hitDetector: HitDetector;
   private mode: GameMode = 'both';
+  private difficulty: Difficulty = 'normal';
   private speed: number = 1; // 0.5 = mitad de velocidad, 1 = normal, 2 = doble
 
   private currentSong: string = '';
@@ -66,6 +67,8 @@ export class Game {
 
   setMode(mode: GameMode): void { this.mode = mode; }
   getMode(): GameMode { return this.mode; }
+  setDifficulty(d: Difficulty): void { this.difficulty = d; }
+  getDifficulty(): Difficulty { return this.difficulty; }
 
   setSpeed(speed: number): void {
     this.speed = Math.max(0.25, Math.min(3, speed));
@@ -100,13 +103,17 @@ export class Game {
     const audioUrl = SongLoader.getAudioUrl(songName, chart);
     await this.audio.load(audioUrl);
 
-    const totalNotes = chart.notes.length + chart.chords.length;
+    const totalNotes = this.filterByDifficulty(chart.notes).length + this.filterChordsByDifficulty(chart.chords).length;
     this.score = new ScoreManager(totalNotes);
   }
 
   private buildExpectedNotes(): void {
     if (!this.chart) return;
     this.expectedNotes.clear();
+
+    // Filtrar por dificultad
+    const notes = this.filterByDifficulty(this.chart.notes);
+    const chords = this.filterChordsByDifficulty(this.chart.chords);
 
     const addNote = (note: number, time: number, duration: number) => {
       const key = `${note}`;
@@ -117,13 +124,37 @@ export class Game {
     };
 
     if (this.mode === 'notes' || this.mode === 'both') {
-      for (const n of this.chart.notes) addNote(n.note, n.time, n.duration);
+      for (const n of notes) addNote(n.note, n.time, n.duration);
     }
     if (this.mode === 'chords' || this.mode === 'both') {
-      for (const c of this.chart.chords) {
+      for (const c of chords) {
         for (const n of c.notes) addNote(n, c.time, c.duration);
       }
     }
+  }
+
+  /** Filtra notas según dificultad */
+  private filterByDifficulty(notes: ChartData['notes']): ChartData['notes'] {
+    if (!notes.length) return [];
+    if (this.difficulty === 'hard') return notes;
+    if (this.difficulty === 'normal') {
+      // Cada 2da nota
+      return notes.filter((_, i) => i % 2 === 0);
+    }
+    // Easy: cada 4ta nota, filtrando las de menor energía
+    return notes.filter((_, i) => i % 4 === 0);
+  }
+
+  /** Filtra acordes según dificultad */
+  private filterChordsByDifficulty(chords: ChartData['chords']): ChartData['chords'] {
+    if (!chords.length) return [];
+    if (this.difficulty === 'hard') return chords;
+    if (this.difficulty === 'normal') {
+      // Cada 2do acorde
+      return chords.filter((_, i) => i % 2 === 0);
+    }
+    // Easy: cada 4to acorde
+    return chords.filter((_, i) => i % 4 === 0);
   }
 
   private processHit(note: number): void {
@@ -275,6 +306,15 @@ export class Game {
             </div>
           </div>
 
+          <div class="difficulty-control">
+            <label>Dificultad:</label>
+            <div class="difficulty-buttons">
+              <button id="diff-easy" class="diff-btn ${this.difficulty === 'easy' ? 'active' : ''}">🟢 Fácil</button>
+              <button id="diff-normal" class="diff-btn ${this.difficulty === 'normal' ? 'active' : ''}">🟡 Normal</button>
+              <button id="diff-hard" class="diff-btn ${this.difficulty === 'hard' ? 'active' : ''}">🔴 Difícil</button>
+            </div>
+          </div>
+
           <div class="speed-control">
             <label>Velocidad: <span id="speed-label">${this.speed.toFixed(1)}x</span></label>
             <div class="speed-buttons">
@@ -325,6 +365,21 @@ export class Game {
     document.getElementById('speed-half')?.addEventListener('click', () => { this.setSpeed(0.5); div.remove(); this.showMenu(); });
     document.getElementById('speed-normal')?.addEventListener('click', () => { this.setSpeed(1); div.remove(); this.showMenu(); });
     document.getElementById('speed-double')?.addEventListener('click', () => { this.setSpeed(2); div.remove(); this.showMenu(); });
+
+    // Difficulty buttons
+    const setDiff = (d: Difficulty) => {
+      this.setDifficulty(d);
+      div.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`diff-${d}`)?.classList.add('active');
+      // Recalcular score con la nueva dificultad
+      if (this.chart) {
+        const totalNotes = this.filterByDifficulty(this.chart.notes).length + this.filterChordsByDifficulty(this.chart.chords).length;
+        this.score = new ScoreManager(totalNotes);
+      }
+    };
+    document.getElementById('diff-easy')?.addEventListener('click', () => setDiff('easy'));
+    document.getElementById('diff-normal')?.addEventListener('click', () => setDiff('normal'));
+    document.getElementById('diff-hard')?.addEventListener('click', () => setDiff('hard'));
 
     // Start button
     document.getElementById('btn-start')?.addEventListener('click', () => {

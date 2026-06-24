@@ -257,7 +257,7 @@ export class NoteRenderer {
 
     // Posición en el carril
     const y = laneBottom - timeDiff * pxPerSec;
-    const h = Math.max(noteEv.duration * pxPerSec, 8); // mínimo 8px
+    const h = Math.min(Math.max(noteEv.duration * pxPerSec * 0.3, 10), 28);
 
     // Lookup de tecla
     const keyIdx = noteEv.note - this.minNote;
@@ -306,7 +306,7 @@ export class NoteRenderer {
     if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
 
     const y = laneBottom - timeDiff * pxPerSec;
-    const h = Math.max(chord.duration * pxPerSec, 10);
+    const h = Math.min(Math.max(chord.duration * pxPerSec * 0.3, 12), 32);
     const dist = Math.abs(timeDiff);
     const alpha = Math.max(0.3, 1 - dist / this.noteScrollTime);
     ctx.globalAlpha = alpha;
