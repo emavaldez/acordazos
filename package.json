@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "prepare": "python3 scripts/prepare_song.py",
+    "prepare-song": "python3 scripts/prepare_song.py",
     "serve": "node scripts/server.mjs"
   },
   "devDependencies": {
