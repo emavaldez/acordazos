@@ -165,6 +165,69 @@ h1 {
   margin-top: 16px;
 }
 
+.menu-wide {
+  max-width: 600px;
+}
+
+/* Lista de canciones */
+.song-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.song-list::-webkit-scrollbar {
+  width: 4px;
+}
+.song-list::-webkit-scrollbar-track {
+  background: #0d0d1f;
+}
+.song-list::-webkit-scrollbar-thumb {
+  background: #333366;
+  border-radius: 2px;
+}
+
+.song-entry {
+  background: #0d0d1f;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.song-entry:hover {
+  border-color: #5555aa;
+  background: #151530;
+}
+
+.song-entry.active {
+  border-color: #6666ff;
+  background: #1a1a3a;
+  box-shadow: 0 0 8px rgba(100, 100, 255, 0.2);
+}
+
+.song-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-meta {
+  font-size: 11px;
+  color: #666688;
+}
+
 /* Resultados */
 .results-card h2 {
   color: #8888aa;

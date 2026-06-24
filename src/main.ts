@@ -9,17 +9,12 @@ async function main() {
   }
 
   const game = new Game(canvas);
+
+  // Inicializar MIDI, audio y cargar canciones
   await game.init();
 
-  // Esperar interacción del usuario para iniciar AudioContext
-  document.addEventListener('click', () => {
-    game.showMenu();
-  }, { once: true });
-
-  // Si hay MIDI conectado, mostrar menú directamente
-  setTimeout(() => {
-    game.showMenu();
-  }, 500);
+  // Mostrar menú
+  game.showMenu();
 }
 
 main().catch(console.error);
