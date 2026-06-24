@@ -1,0 +1,206 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a1a;
+  font-family: 'Courier New', Courier, monospace;
+  color: #ffffff;
+  user-select: none;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Menú */
+#menu-overlay,
+#results-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 26, 0.95);
+  z-index: 100;
+}
+
+.menu-card,
+.results-card {
+  background: #1a1a2e;
+  border: 1px solid #333366;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(0, 100, 255, 0.15);
+}
+
+h1 {
+  font-size: 42px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #00ddff, #ff66ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  color: #8888aa;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.midi-status {
+  background: #0d0d1f;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  margin-bottom: 20px;
+  color: #66ff88;
+}
+
+.song-info {
+  background: #0d0d1f;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 16px;
+}
+
+.song-artist {
+  color: #8888aa;
+  font-size: 13px;
+}
+
+.song-duration {
+  color: #555577;
+  font-size: 12px;
+}
+
+.mode-selector {
+  margin-bottom: 24px;
+}
+
+.mode-selector label {
+  display: block;
+  color: #8888aa;
+  font-size: 12px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.mode-btn {
+  background: #0d0d1f;
+  border: 1px solid #333366;
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: #8888aa;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  border-color: #5555aa;
+  color: #ccccff;
+}
+
+.mode-btn.active {
+  background: #222255;
+  border-color: #6666ff;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(100, 100, 255, 0.3);
+}
+
+.game-btn {
+  background: linear-gradient(135deg, #0055ff, #9933ff);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 48px;
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.game-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 85, 255, 0.4);
+}
+
+.start-btn {
+  padding: 16px 60px;
+  font-size: 22px;
+}
+
+.hint {
+  color: #555577;
+  font-size: 11px;
+  margin-top: 16px;
+}
+
+/* Resultados */
+.results-card h2 {
+  color: #8888aa;
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
+.results-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.stat {
+  background: #0d0d1f;
+  border-radius: 10px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: #666688;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat.perfect .stat-value { color: #00ff88; }
+.stat.good .stat-value { color: #ffcc00; }
+.stat.miss .stat-value { color: #ff3355; }
