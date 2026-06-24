@@ -1,15 +1,13 @@
 import type { ChartData, GameMode } from '../types';
 
 /**
- * Renderiza las notas cayendo verticalmente sobre un teclado de piano horizontal.
- * Tipo Guitar Hero pero con teclas de piano.
+ * Renderiza notas cayendo verticalmente sobre un teclado de piano horizontal.
+ * Tipo Guitar Hero con teclas de piano (de izquierda a derecha: grave→agudo).
  *
- * Layout (vertical):
- *   [ HUD arriba ]
- *   [   NOTAS CAYENDO  ]
- *   [   ↓    ↓    ↓    ]
- *   [   ]   ]   ]   ]  ]
- *   [   LÍNEA DE IMPACTO ]
+ * Layout:
+ *   [ HUD ]
+ *   [ NOTAS CAYENDO ↓↓↓ ]
+ *   [ ████████████████ ]  ← línea de impacto
  *   [ TECLADO DE PIANO ]
  */
 export class NoteRenderer {
@@ -18,41 +16,35 @@ export class NoteRenderer {
   private width: number = 0;
   private height: number = 0;
 
-  // Configuración visual
+  // Configuración
   private readonly hudHeight: number = 65;
-  private readonly keyboardHeight: number = 90;
-  private readonly noteScrollTime: number = 3; // segundos que tarda una nota en caer desde arriba hasta la línea de impacto
+  private readonly keyboardHeight: number = 100;
+  private readonly noteScrollTime: number = 5; // segundos que tarda una nota en caer
 
-  // Rango de teclas MIDI Yamaha E333 (61 teclas: C2=36 a C7=96)
-  private readonly maxNote: number = 96;
+  // Rango Yamaha E333 (61 teclas: C2=36 a C7=96)
+  private readonly minNote: number = 36;
   private readonly keyCount: number = 61;
 
-  // Layout del teclado: índice de las teclas negras dentro de cada octava
-  // C=0, C#=1, D=2, D#=3, E=4, F=5, F#=6, G=7, G#=8, A=9, A#=10, B=11
+  // Teclas negras dentro de cada octava (C=0, C#=1, ..., B=11)
   private readonly blackKeyIndices = new Set([1, 3, 6, 8, 10]);
 
   // Colores
   private readonly bgColor = '#0a0a1a';
   private readonly laneBgColor = '#111128';
-  private readonly hitZoneColor = '#ffcc0033';
+  private readonly hitZoneColor = '#ffcc0044';
   private readonly hitZoneLineColor = '#ffcc00';
-  private readonly noteColor = '#00ddff';
+  private readonly noteColor = '#00eeff';
+  private readonly noteGlow = '#00eeff66';
   private readonly chordColor = '#ff66ff';
-  private readonly whiteKeyColor = '#e0e0e0';
+  private readonly chordGlow = '#ff66ff66';
   private readonly whiteKeyActiveColor = '#aaddff';
-  private readonly blackKeyColor = '#222230';
-  private readonly blackKeyActiveColor = '#4488cc';
-  private readonly keyBorderColor = '#555';
+    private readonly blackKeyActiveColor = '#4488cc';
   private readonly perfectColor = '#00ff88';
   private readonly goodColor = '#ffcc00';
   private readonly missColor = '#ff3355';
 
-  // Cache de layout de teclas
-  private keyLayout: {
-    x: number;
-    w: number;
-    isBlack: boolean;
-  }[] = [];
+  // Layout de teclas cacheado
+  private keyLayout: { x: number; w: number; isBlack: boolean }[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -68,23 +60,20 @@ export class NoteRenderer {
     this.buildKeyLayout();
   }
 
-  /** Calcula la posición Y de la línea de impacto */
   private get hitLineY(): number {
-    return this.height - this.keyboardHeight - 20;
+    return this.height - this.keyboardHeight - 15;
   }
 
-  /** Calcula la posición X de cada tecla en el teclado */
+  /** Construye el layout de teclas de IZQUIERDA (grave=C2) a DERECHA (agudo=C7) */
   private buildKeyLayout(): void {
     this.keyLayout = [];
     const totalW = this.width;
 
-    // Contar teclas blancas para distribuir el ancho
+    // Contar teclas blancas
     let whiteCount = 0;
     for (let i = 0; i < this.keyCount; i++) {
-      const note = this.maxNote - i;
-      if (!this.blackKeyIndices.has(note % 12)) {
-        whiteCount++;
-      }
+      const note = this.minNote + i; // 36 → 96 (C2 → C7)
+      if (!this.blackKeyIndices.has(note % 12)) whiteCount++;
     }
 
     const whiteKeyW = totalW / whiteCount;
@@ -92,11 +81,10 @@ export class NoteRenderer {
     let whiteIndex = 0;
 
     for (let i = 0; i < this.keyCount; i++) {
-      const note = this.maxNote - i;
+      const note = this.minNote + i;
       const isBlack = this.blackKeyIndices.has(note % 12);
 
       if (isBlack) {
-        // La tecla negra se posiciona entre la blanca actual y la siguiente
         const prevWhiteX = (whiteIndex - 1) * whiteKeyW;
         this.keyLayout.push({
           x: prevWhiteX + whiteKeyW - blackKeyW / 2,
@@ -114,7 +102,7 @@ export class NoteRenderer {
     }
   }
 
-  /** Renderiza un frame completo */
+  /** Renderiza un frame */
   render(
     chart: ChartData,
     gameTime: number,
@@ -124,37 +112,21 @@ export class NoteRenderer {
     hitResults: { time: number; rating: string }[],
   ): void {
     const ctx = this.ctx;
-
-    // Limpiar
     ctx.fillStyle = this.bgColor;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // HUD
     this.renderHUD(chart, scoreState, mode, gameTime);
-
-    // Área de juego (notas cayendo)
     this.renderLane(chart, gameTime, mode);
-
-    // Feedback de hits recientes
     this.renderHitFeedback(hitResults);
-
-    // Teclado de piano
-    this.renderKeyboard(activeNotes, gameTime);
+    this.renderKeyboard(activeNotes);
   }
 
-  private renderHUD(
-    chart: ChartData,
-    scoreState: { score: number; combo: number; maxCombo: number; perfects: number; goods: number; misses: number },
-    mode: GameMode,
-    gameTime: number,
-  ): void {
+  // ─── HUD ───────────────────────────────────────────────────────────────
+  private renderHUD(chart: ChartData, scoreState: { score: number; combo: number; perfects: number; goods: number; misses: number }, mode: GameMode, gameTime: number): void {
     const ctx = this.ctx;
 
-    // Fondo del HUD
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, this.width, this.hudHeight);
-
-    // Línea separadora
     ctx.strokeStyle = '#2a2a4a';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -162,236 +134,204 @@ export class NoteRenderer {
     ctx.lineTo(this.width, this.hudHeight);
     ctx.stroke();
 
-    // Título
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px monospace';
-    ctx.fillText(`${chart.title} - ${chart.artist}`, 16, 24);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(`${chart.title}`, 14, 22);
 
-    // Modo
     const modeLabel = mode === 'chords' ? '🎸 ACORDES' : mode === 'notes' ? '🎵 NOTAS' : '🎵🎸 AMBOS';
-    ctx.font = '11px monospace';
-    ctx.fillStyle = '#aaaaaa';
-    ctx.fillText(`Modo: ${modeLabel}`, 16, 44);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(`${modeLabel} · ${chart.artist}`, 14, 44);
 
-    // Stats (perfects/goods/misses)
-    ctx.font = '11px monospace';
+    // Stats
+    ctx.font = '10px monospace';
     ctx.fillStyle = this.perfectColor;
-    ctx.fillText(`P:${scoreState.perfects}`, this.width * 0.45, 24);
+    ctx.fillText(`P:${scoreState.perfects}`, this.width * 0.42, 22);
     ctx.fillStyle = this.goodColor;
-    ctx.fillText(`G:${scoreState.goods}`, this.width * 0.45, 44);
+    ctx.fillText(`G:${scoreState.goods}`, this.width * 0.42, 44);
     ctx.fillStyle = this.missColor;
-    ctx.fillText(`M:${scoreState.misses}`, this.width * 0.45, 64);
+    ctx.fillText(`M:${scoreState.misses}`, this.width * 0.42, 64);
 
-    // Timer
-    ctx.fillStyle = '#888888';
+    // Score + combo
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px monospace';
     ctx.textAlign = 'right';
-    ctx.font = '12px monospace';
-    const min = Math.floor(gameTime / 60);
-    const sec = Math.floor(gameTime % 60);
-    ctx.fillText(`${min}:${sec.toString().padStart(2, '0')}`, this.width - 16, 24);
-
-    // Tiempo restante
-    const remaining = Math.max(0, chart.duration - gameTime);
-    const remMin = Math.floor(remaining / 60);
-    const remSec = Math.floor(remaining % 60);
-    ctx.fillStyle = '#555555';
-    ctx.fillText(`-${remMin}:${remSec.toString().padStart(2, '0')}`, this.width - 16, 44);
-
+    ctx.fillText(`${scoreState.score}`, this.width - 14, 26);
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = scoreState.combo > 5 ? '#ffcc00' : '#aaa';
+    ctx.fillText(`🔥 ${scoreState.combo}`, this.width - 14, 48);
     ctx.textAlign = 'left';
 
-    // Score
-    ctx.font = 'bold 24px monospace';
-    ctx.fillStyle = '#ffffff';
+    // Timer
+    ctx.fillStyle = '#888';
+    ctx.font = '11px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`${scoreState.score}`, this.width - 16, 64);
-
-    // Combo
-    ctx.font = 'bold 14px monospace';
-    ctx.fillStyle = scoreState.combo > 5 ? '#ffcc00' : '#aaaaaa';
-    ctx.fillText(`🔥 ${scoreState.combo}`, this.width - 140, 64);
+    const min = Math.floor(gameTime / 60);
+    const sec = Math.floor(gameTime % 60);
+    ctx.fillText(`${min}:${sec.toString().padStart(2, '0')}`, this.width - 14, 65);
     ctx.textAlign = 'left';
   }
 
+  // ─── CARRIL DE NOTAS ───────────────────────────────────────────────────
   private renderLane(chart: ChartData, gameTime: number, mode: GameMode): void {
     const ctx = this.ctx;
     const laneTop = this.hudHeight;
     const laneBottom = this.hitLineY;
     const laneH = laneBottom - laneTop;
 
-    // Fondo del carril
+    // Fondo
     ctx.fillStyle = this.laneBgColor;
     ctx.fillRect(0, laneTop, this.width, laneH);
 
-    // Línea de octavas verticales (separación entre C y B)
+    // Líneas divisorias de octavas
     ctx.strokeStyle = '#1a1a30';
-    ctx.lineWidth = 1;
     for (let i = 0; i < this.keyCount; i++) {
-      const note = this.maxNote - i;
+      const note = this.minNote + i;
       if (note % 12 === 0) {
-        // Inicio de octava - línea más marcada
         const key = this.keyLayout[i];
-        if (key) {
-          ctx.strokeStyle = '#252545';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(key.x, laneTop);
-          ctx.lineTo(key.x, laneBottom);
-          ctx.stroke();
-          ctx.lineWidth = 1;
-        }
+        if (!key) continue;
+        ctx.strokeStyle = '#252545';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(key.x, laneTop);
+        ctx.lineTo(key.x, laneBottom);
+        ctx.stroke();
       }
     }
+    ctx.lineWidth = 1;
 
-    // Etiquetas de notas (solo C y su número de octava)
-    ctx.font = '8px monospace';
-    ctx.fillStyle = '#444466';
+    // Etiquetas C en cada octava (izquierda de cada octava)
+    ctx.font = '7px monospace';
+    ctx.fillStyle = '#555577';
     ctx.textAlign = 'center';
     for (let i = 0; i < this.keyCount; i++) {
-      const note = this.maxNote - i;
+      const note = this.minNote + i;
       if (note % 12 === 0) {
         const key = this.keyLayout[i];
-        if (key) {
-          const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-          const octave = Math.floor(note / 12) - 1;
-          ctx.fillText(`${noteNames[0]}${octave}`, key.x + key.w / 2, laneBottom - 4);
-        }
+        if (!key) continue;
+        const octave = Math.floor(note / 12) - 1;
+        ctx.fillText(`C${octave}`, key.x + key.w / 2, laneBottom - 4);
       }
     }
 
-    // Velocidad de caída de las notas
+    // Velocidad de scroll (pixeles por segundo)
     const pxPerSec = laneH / this.noteScrollTime;
 
-    // Renderizar notas y acordes
+    // Notas
     if (mode === 'notes' || mode === 'both') {
-      for (const note of chart.notes) {
-        this.renderNote(note, gameTime, laneTop, laneBottom, pxPerSec);
-      }
+      for (const n of chart.notes) this.renderNote(n, gameTime, laneBottom, pxPerSec);
     }
     if (mode === 'chords' || mode === 'both') {
-      for (const chord of chart.chords) {
-        this.renderChord(chord, gameTime, laneTop, laneBottom, pxPerSec);
-      }
+      for (const c of chart.chords) this.renderChord(c, gameTime, laneBottom, pxPerSec);
     }
 
-    // Línea de impacto
+    // Línea de impacto (más visible)
     ctx.fillStyle = this.hitZoneColor;
-    ctx.fillRect(0, laneBottom - 15, this.width, 30);
+    ctx.fillRect(0, laneBottom - 18, this.width, 36);
     ctx.strokeStyle = this.hitZoneLineColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = this.hitZoneLineColor;
+    ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(0, laneBottom);
     ctx.lineTo(this.width, laneBottom);
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
+  /** Renderiza una nota individual como "pastillita" */
   private renderNote(
-    note: { time: number; note: number; duration: number },
+    noteEv: { time: number; note: number; duration: number },
     gameTime: number,
-    _laneTop: number,
     laneBottom: number,
     pxPerSec: number,
   ): void {
     const ctx = this.ctx;
-    const timeDiff = note.time - gameTime;
-
-    // No dibujar si muy lejos en el pasado o futuro
+    const timeDiff = noteEv.time - gameTime;
     if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
 
-    // Posición Y (arriba a abajo)
+    // Posición en el carril
     const y = laneBottom - timeDiff * pxPerSec;
+    const h = Math.max(noteEv.duration * pxPerSec, 8); // mínimo 8px
 
-    // Tamaño según duración
-    const h = Math.max(note.duration * pxPerSec, 6);
-
-    // Posición X según la tecla
-    const noteIndex = this.maxNote - note.note;
-    const key = this.keyLayout[noteIndex];
+    // Lookup de tecla
+    const keyIdx = noteEv.note - this.minNote;
+    const key = this.keyLayout[keyIdx];
     if (!key) return;
 
-    // Centro de la tecla
-    const x = key.x;
-    const w = key.w;
-
-    // Si es tecla negra, la nota es más angosta y arriba de la blanca
-    const noteW = key.isBlack ? w : w * 0.85;
-    const noteX = key.isBlack ? x : x + (w - noteW) / 2;
+    const noteW = key.isBlack ? key.w * 0.9 : key.w * 0.8;
+    const noteX = key.x + (key.w - noteW) / 2;
 
     // Opacidad según distancia
-    const distFromHit = Math.abs(timeDiff);
-    const alpha = Math.max(0.25, 1 - distFromHit / this.noteScrollTime);
+    const dist = Math.abs(timeDiff);
+    const alpha = Math.max(0.3, 1 - dist / this.noteScrollTime);
     ctx.globalAlpha = alpha;
 
-    // Brillo si está cerca del hit zone
-    if (distFromHit < 0.3) {
-      ctx.shadowColor = this.noteColor;
-      ctx.shadowBlur = 12;
+    // Sombra/glow si está cerca del hit
+    if (dist < 0.5) {
+      ctx.shadowColor = this.noteGlow;
+      ctx.shadowBlur = 14;
     }
 
-    // Dibujar la nota como rectángulo redondeado
-    const radius = 3;
+    // ── Pastillita (rectángulo muy redondeado) ──
+    const radius = Math.min(noteW / 2, h / 2, 8);
     ctx.fillStyle = this.noteColor;
     ctx.beginPath();
     ctx.moveTo(noteX + radius, y);
-    ctx.lineTo(noteX + noteW - radius, y);
-    ctx.quadraticCurveTo(noteX + noteW, y, noteX + noteW, y + radius);
-    ctx.lineTo(noteX + noteW, y + h - radius);
-    ctx.quadraticCurveTo(noteX + noteW, y + h, noteX + noteW - radius, y + h);
-    ctx.lineTo(noteX + radius, y + h);
-    ctx.quadraticCurveTo(noteX, y + h, noteX, y + h - radius);
-    ctx.lineTo(noteX, y + radius);
-    ctx.quadraticCurveTo(noteX, y, noteX + radius, y);
+    ctx.arcTo(noteX + noteW, y, noteX + noteW, y + h, radius);
+    ctx.arcTo(noteX + noteW, y + h, noteX, y + h, radius);
+    ctx.arcTo(noteX, y + h, noteX, y, radius);
+    ctx.arcTo(noteX, y, noteX + noteW, y, radius);
     ctx.closePath();
     ctx.fill();
+
+    // Borde brillante
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
   }
 
+  /** Renderiza un acorde como múltiples pastillitas del mismo color */
   private renderChord(
     chord: { time: number; notes: number[]; duration: number },
     gameTime: number,
-    _laneTop: number,
     laneBottom: number,
     pxPerSec: number,
   ): void {
     const ctx = this.ctx;
     const timeDiff = chord.time - gameTime;
-
     if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
 
     const y = laneBottom - timeDiff * pxPerSec;
-    const h = Math.max(chord.duration * pxPerSec, 6);
-
-    const distFromHit = Math.abs(timeDiff);
-    const alpha = Math.max(0.25, 1 - distFromHit / this.noteScrollTime);
+    const h = Math.max(chord.duration * pxPerSec, 10);
+    const dist = Math.abs(timeDiff);
+    const alpha = Math.max(0.3, 1 - dist / this.noteScrollTime);
     ctx.globalAlpha = alpha;
 
-    if (distFromHit < 0.3) {
-      ctx.shadowColor = this.chordColor;
-      ctx.shadowBlur = 12;
+    if (dist < 0.5) {
+      ctx.shadowColor = this.chordGlow;
+      ctx.shadowBlur = 16;
     }
 
-    // Dibujar cada nota del acorde como un rectángulo
     for (const midiNote of chord.notes) {
-      const noteIndex = this.maxNote - midiNote;
-      const key = this.keyLayout[noteIndex];
+      const keyIdx = midiNote - this.minNote;
+      const key = this.keyLayout[keyIdx];
       if (!key) continue;
 
-      const noteW = key.isBlack ? key.w : key.w * 0.85;
-      const noteX = key.isBlack ? key.x : key.x + (key.w - noteW) / 2;
+      const noteW = key.isBlack ? key.w * 0.9 : key.w * 0.8;
+      const noteX = key.x + (key.w - noteW) / 2;
 
-      const radius = 2;
+      const radius = Math.min(noteW / 2, h / 2, 8);
       ctx.fillStyle = this.chordColor;
       ctx.beginPath();
       ctx.moveTo(noteX + radius, y);
-      ctx.lineTo(noteX + noteW - radius, y);
-      ctx.quadraticCurveTo(noteX + noteW, y, noteX + noteW, y + radius);
-      ctx.lineTo(noteX + noteW, y + h - radius);
-      ctx.quadraticCurveTo(noteX + noteW, y + h, noteX + noteW - radius, y + h);
-      ctx.lineTo(noteX + radius, y + h);
-      ctx.quadraticCurveTo(noteX, y + h, noteX, y + h - radius);
-      ctx.lineTo(noteX, y + radius);
-      ctx.quadraticCurveTo(noteX, y, noteX + radius, y);
+      ctx.arcTo(noteX + noteW, y, noteX + noteW, y + h, radius);
+      ctx.arcTo(noteX + noteW, y + h, noteX, y + h, radius);
+      ctx.arcTo(noteX, y + h, noteX, y, radius);
+      ctx.arcTo(noteX, y, noteX + noteW, y, radius);
       ctx.closePath();
       ctx.fill();
     }
@@ -400,92 +340,86 @@ export class NoteRenderer {
     ctx.globalAlpha = 1;
   }
 
-  private renderKeyboard(activeNotes: Set<number>, _gameTime: number): void {
+  // ─── TECLADO DE PIANO ──────────────────────────────────────────────────
+  private renderKeyboard(activeNotes: Set<number>): void {
     const ctx = this.ctx;
-    const kbTop = this.height - this.keyboardHeight;
+    const kbY = this.height - this.keyboardHeight;
     const kbH = this.keyboardHeight - 5;
 
-    // Fondo del teclado
+    // Fondo
     ctx.fillStyle = '#12121f';
-    ctx.fillRect(0, kbTop - 2, this.width, kbH + 2);
-
-    // Línea separadora del teclado
+    ctx.fillRect(0, kbY - 2, this.width, kbH + 2);
     ctx.strokeStyle = '#2a2a4a';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, kbTop);
-    ctx.lineTo(this.width, kbTop);
+    ctx.moveTo(0, kbY);
+    ctx.lineTo(this.width, kbY);
     ctx.stroke();
 
-    // Dibujar teclas blancas primero
+    // Blancas
     for (let i = 0; i < this.keyCount; i++) {
-      const note = this.maxNote - i;
+      const note = this.minNote + i;
       const key = this.keyLayout[i];
       if (!key || key.isBlack) continue;
-
-      const isActive = activeNotes.has(note);
-      ctx.fillStyle = isActive ? this.whiteKeyActiveColor : this.whiteKeyColor;
-      ctx.fillRect(key.x, kbTop + 2, key.w, kbH);
-
-      ctx.strokeStyle = this.keyBorderColor;
+      const active = activeNotes.has(note);
+      const even = (Math.floor((note - 36) / 7)) % 2 === 0;
+      ctx.fillStyle = active ? this.whiteKeyActiveColor : even ? '#e8e8e4' : '#d4d4d0';
+      ctx.fillRect(key.x, kbY + 2, key.w, kbH);
+      ctx.strokeStyle = '#999';
       ctx.lineWidth = 0.5;
-      ctx.strokeRect(key.x, kbTop + 2, key.w, kbH);
+      ctx.strokeRect(key.x, kbY + 2, key.w, kbH);
     }
 
-    // Dibujar teclas negras encima
+    // Negras encima
     for (let i = 0; i < this.keyCount; i++) {
-      const note = this.maxNote - i;
+      const note = this.minNote + i;
       const key = this.keyLayout[i];
       if (!key || !key.isBlack) continue;
-
-      const isActive = activeNotes.has(note);
-      ctx.fillStyle = isActive ? this.blackKeyActiveColor : this.blackKeyColor;
-      ctx.fillRect(key.x, kbTop + 2, key.w, kbH * 0.6);
-
+      const active = activeNotes.has(note);
+      ctx.fillStyle = active ? this.blackKeyActiveColor : '#1e1e2e';
+      ctx.fillRect(key.x, kbY + 2, key.w, kbH * 0.6);
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 0.5;
-      ctx.strokeRect(key.x, kbTop + 2, key.w, kbH * 0.6);
-    }
+      ctx.strokeRect(key.x, kbY + 2, key.w, kbH * 0.6);
 
-    // Si los acordes están activos, mostrar el nombre del acorde actual cerca del teclado
-    // (opcional, por ahora no)
+      // Brillo en teclas negras
+      if (!active) {
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        ctx.fillRect(key.x + 2, kbY + 3, key.w - 4, 3);
+      }
+    }
   }
 
+  // ─── FEEDBACK DE HITS ──────────────────────────────────────────────────
   private renderHitFeedback(hitResults: { time: number; rating: string }[]): void {
     const ctx = this.ctx;
     const now = performance.now() / 1000;
-
-    // Filtrar solo los últimos 2 segundos
-    const recent = hitResults.filter(h => (now - h.time) < 2);
+    const recent = hitResults.filter(h => (now - h.time) < 2.5);
 
     for (const hit of recent) {
       const age = now - hit.time;
-
-      const alpha = Math.max(0, 1 - age / 2);
+      const alpha = Math.max(0, 1 - age / 2.5);
       ctx.globalAlpha = alpha;
 
-      const color = hit.rating === 'perfect'
-        ? this.perfectColor
-        : hit.rating === 'good'
-          ? this.goodColor
-          : this.missColor;
+      const color = hit.rating === 'perfect' ? this.perfectColor
+        : hit.rating === 'good' ? this.goodColor : this.missColor;
+
+      const floatY = this.height / 2 - 150 + age * -60;
+      const label = hit.rating === 'perfect' ? '🔥 PERFECTO'
+        : hit.rating === 'good' ? '👍 BIEN' : '❌ MISS';
+      const sub = hit.rating === 'perfect' ? '+100' : hit.rating === 'good' ? '+50' : '+0';
 
       ctx.fillStyle = color;
-      ctx.font = 'bold 28px monospace';
+      ctx.font = 'bold 26px monospace';
       ctx.textAlign = 'center';
-
-      // El feedback aparece arriba del centro, y sube con el tiempo
-      const floatY = this.height / 2 - 150 + age * -80;
-
-      const label = hit.rating === 'perfect' ? '🔥 PERFECTO' : hit.rating === 'good' ? '👍 BIEN' : '❌ MISS';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
       ctx.fillText(label, this.width / 2, floatY);
-
-      const subLabel = hit.rating === 'perfect' ? '+100' : hit.rating === 'good' ? '+50' : '+0';
-      ctx.font = '16px monospace';
-      ctx.fillStyle = '#cccccc';
-      ctx.fillText(subLabel, this.width / 2, floatY + 30);
+      ctx.shadowBlur = 0;
+      ctx.font = '14px monospace';
+      ctx.fillStyle = '#ccc';
+      ctx.fillText(sub, this.width / 2, floatY + 28);
     }
-
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
