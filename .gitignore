@@ -26,3 +26,4 @@ dist-ssr
 # Temp audio files
 temp_audio
 .temp
+.vercel
