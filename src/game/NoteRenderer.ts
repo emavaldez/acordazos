@@ -412,7 +412,6 @@ export class NoteRenderer {
     // Velocidad scroll
     const pxPerSec = laneH / this.noteScrollTime;
 
-    // Render notas y acordes
     if (mode === 'notes' || mode === 'both') {
       for (const n of chart.notes) this.renderNote(n, gameTime, laneBottom, pxPerSec);
     }
@@ -450,6 +449,49 @@ export class NoteRenderer {
     ctx.setLineDash([]);
   }
 
+  /** Renderiza una gema individual en una posición y color dados */
+  private renderGem(
+    x: number, y: number, w: number, h: number,
+    color: { r: number; g: number; b: number },
+    alpha: number,
+    dist: number,
+  ): void {
+    const ctx = this.ctx;
+    const radius = Math.min(w / 2, h / 2, 8);
+    ctx.globalAlpha = alpha;
+
+    if (dist < 0.4) {
+      ctx.shadowColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+      ctx.shadowBlur = 18;
+    }
+
+    const gemGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+    gemGrad.addColorStop(0, `rgba(${Math.min(255, color.r + 100)}, ${Math.min(255, color.g + 100)}, ${Math.min(255, color.b + 100)}, 1)`);
+    gemGrad.addColorStop(0.5, `rgb(${color.r}, ${color.g}, ${color.b})`);
+    gemGrad.addColorStop(1, `rgba(${Math.max(0, color.r - 50)}, ${Math.max(0, color.g - 50)}, ${Math.max(0, color.b - 50)}, 1)`);
+    ctx.fillStyle = gemGrad;
+
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.fill();
+
+    // Brillo superior (specular)
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * alpha})`;
+    ctx.beginPath();
+    ctx.roundRect(x + 2, y + 2, w * 0.4, h * 0.3, 2);
+    ctx.fill();
+
+    // Borde
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 * alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
   /** Renderiza una nota como gema brillante */
   private renderNote(
     noteEv: { time: number; note: number; duration: number },
@@ -457,7 +499,6 @@ export class NoteRenderer {
     laneBottom: number,
     pxPerSec: number,
   ): void {
-    const ctx = this.ctx;
     const timeDiff = noteEv.time - gameTime;
     if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
 
@@ -476,54 +517,17 @@ export class NoteRenderer {
     // Color por región (como GH: 5 colores según octava)
     const region = Math.floor((noteEv.note - this.minNote) / (this.keyCount / 5));
     const lc = this.laneColors[Math.min(region, 4)];
-    const color = `rgb(${lc.r}, ${lc.g}, ${lc.b})`;
 
-    // Gem shape: pastillita con gradiente y brillo
-    const radius = Math.min(noteW / 2, h / 2, 8);
-    ctx.globalAlpha = alpha;
-
-    // Glow si está cerca del hit
-    if (dist < 0.4) {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 18;
-    }
-
-    // Gradiente de la gema
-    const gemGrad = ctx.createLinearGradient(noteX, y, noteX + noteW, y + h);
-    gemGrad.addColorStop(0, `rgba(${Math.min(255, lc.r + 100)}, ${Math.min(255, lc.g + 100)}, ${Math.min(255, lc.b + 100)}, 1)`);
-    gemGrad.addColorStop(0.5, color);
-    gemGrad.addColorStop(1, `rgba(${Math.max(0, lc.r - 50)}, ${Math.max(0, lc.g - 50)}, ${Math.max(0, lc.b - 50)}, 1)`);
-    ctx.fillStyle = gemGrad;
-
-    ctx.beginPath();
-    ctx.roundRect(noteX, y, noteW, h, radius);
-    ctx.fill();
-
-    // Brillo superior (specular)
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * alpha})`;
-    ctx.beginPath();
-    ctx.roundRect(noteX + 2, y + 2, noteW * 0.4, h * 0.3, 2);
-    ctx.fill();
-
-    // Borde
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 * alpha})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(noteX, y, noteW, h, radius);
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
+    this.renderGem(noteX, y, noteW, h, lc, alpha, dist);
   }
 
-  /** Renderiza un acorde como gemas del mismo color */
+  /** Renderiza un acorde — cada nota del acorde usa renderGem con color acorde */
   private renderChord(
     chord: { time: number; notes: number[]; duration: number },
     gameTime: number,
     laneBottom: number,
     pxPerSec: number,
   ): void {
-    const ctx = this.ctx;
     const timeDiff = chord.time - gameTime;
     if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
 
@@ -531,12 +535,9 @@ export class NoteRenderer {
     const h = Math.min(Math.max(chord.duration * pxPerSec * 0.3, 14), 34);
     const dist = Math.abs(timeDiff);
     const alpha = Math.max(0.3, 1 - dist / this.noteScrollTime);
-    ctx.globalAlpha = alpha;
 
-    if (dist < 0.4) {
-      ctx.shadowColor = '#ff66ff';
-      ctx.shadowBlur = 20;
-    }
+    // Color acorde: púrpura/magenta vibrante
+    const chordColor = { r: 200, g: 70, b: 255 };
 
     for (const midiNote of chord.notes) {
       const keyIdx = midiNote - this.minNote;
@@ -546,34 +547,8 @@ export class NoteRenderer {
       const noteW = key.isBlack ? key.w * 0.85 : key.w * 0.75;
       const noteX = key.x + (key.w - noteW) / 2;
 
-      const radius = Math.min(noteW / 2, h / 2, 8);
-
-      // Gema acorde (púrpura/magenta)
-      const gemGrad = ctx.createLinearGradient(noteX, y, noteX + noteW, y + h);
-      gemGrad.addColorStop(0, '#ff88ff');
-      gemGrad.addColorStop(0.5, '#cc44ff');
-      gemGrad.addColorStop(1, '#8800cc');
-      ctx.fillStyle = gemGrad;
-
-      ctx.beginPath();
-      ctx.roundRect(noteX, y, noteW, h, radius);
-      ctx.fill();
-
-      // Brillo
-      ctx.fillStyle = `rgba(255, 255, 255, ${0.25 * alpha})`;
-      ctx.beginPath();
-      ctx.roundRect(noteX + 2, y + 2, noteW * 0.35, h * 0.25, 2);
-      ctx.fill();
-
-      ctx.strokeStyle = `rgba(255, 200, 255, ${0.15 * alpha})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(noteX, y, noteW, h, radius);
-      ctx.stroke();
+      this.renderGem(noteX, y, noteW, h, chordColor, alpha, dist);
     }
-
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
   }
 
   // ─── TECLADO DE PIANO ──────────────────────────────────────────────
