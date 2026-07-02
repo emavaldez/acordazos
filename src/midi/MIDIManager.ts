@@ -17,7 +17,11 @@ export class MIDIManager {
     }
 
     try {
-      this.midiAccess = await navigator.requestMIDIAccess();
+      // Timeout: si WebMIDI no responde en 5s, seguir sin MIDI
+      this.midiAccess = await Promise.race([
+        navigator.requestMIDIAccess(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('MIDI timeout')), 5000))
+      ]);
       this.updateDeviceList();
       this.midiAccess.onstatechange = () => this.updateDeviceList();
       return this.inputDevice !== null;

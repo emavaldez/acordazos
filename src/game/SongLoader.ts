@@ -23,16 +23,17 @@ export class SongLoader {
       }
     }
 
-    // También probar canciones del servidor remoto
+    // También probar canciones del servidor remoto (con timeout corto)
     try {
-      const resp = await fetch(`${SongLoader.serverBase}/api/songs`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const resp = await fetch(`${SongLoader.serverBase}/api/songs`, { signal: controller.signal });
+      clearTimeout(timeout);
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data.songs)) {
           for (const remoteName of data.songs) {
-            // Evitar duplicados
             if (results.some(r => r.name === remoteName)) continue;
-            // Cargar chart desde el server
             const chart = await SongLoader.loadRemoteChart(remoteName);
             if (chart) {
               results.push({ name: remoteName, chart });
