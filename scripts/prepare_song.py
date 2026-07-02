@@ -80,7 +80,7 @@ def download_audio(url, output_dir):
     log("Descargando audio desde YouTube...")
     out_path = output_dir / "full.wav"
     cmd = [
-        "yt-dlp",
+        _PYTHON, "-m", "yt_dlp",
         "--no-warnings",
         "--extractor-args", "youtube:player_client=android",
         "-x",
@@ -94,7 +94,7 @@ def download_audio(url, output_dir):
     if not out_path.exists():
         raise FileNotFoundError(f"No se encontró el audio descargado en {out_path}")
 
-    meta_cmd = ["yt-dlp", "--no-warnings", "--extractor-args", "youtube:player_client=android",
+    meta_cmd = [_PYTHON, "-m", "yt_dlp", "--no-warnings", "--extractor-args", "youtube:player_client=android",
                 "--print", "title", "--print", "channel", "--print", "duration", url]
     meta_proc = subprocess.run(meta_cmd, capture_output=True, text=True, timeout=30)
     meta_lines = meta_proc.stdout.strip().split("\n")
@@ -213,14 +213,15 @@ def mix_harmonic_stems(stems, output_dir):
 
 def extract_all_notes(source_path, bpm, duration):
     """
-    Extrae TODAS las notas del audio usando detección de pitch multicapa.
+    Extrae TODAS las notas del audio armónico usando detección multi-pitch.
     
     Algoritmo:
-    1. STFT con alta resolución temporal
-    2. Por cada frame, detectar pitches dominantes
-    3. Detectar onsets (cambios armónicos)
-    4. Entre onsets, agrupar pitches simultáneos como acordes
-    5. Separar en notas individuales y acordes
+    1. CQT sobre el audio armónico (HPSS)
+    2. Onset detection para segmentar cambios armónicos
+    3. Para cada segmento: promediar espectro en TODOS los frames
+    4. Encontrar TODOS los picos locales en el promedio → notas simultáneas
+    5. Filtrar armónicos (octavas) para quedarse con las notas reales
+    6. Agrupar: 1 nota = individual, 2+ notas = acorde
     """
     if not source_path or not source_path.exists():
         log("  Sin fuente de audio, omitiendo")
@@ -228,13 +229,12 @@ def extract_all_notes(source_path, bpm, duration):
 
     log(f"Analizando {source_path.name} para notas + acordes...")
 
-    # Cargar audio
     y, sr = librosa.load(str(source_path), sr=SR)
 
-    # HPSS: separar componente armónica (notas) de percusiva
+    # HPSS: solo componente armónica
     y_harmonic, _ = librosa.effects.hpss(y)
 
-    # Detectar onsets en la componente armónica
+    # Onsets para segmentar cambios armónicos
     onset_frames = librosa.onset.onset_detect(
         y=y_harmonic, sr=sr,
         hop_length=HOP_LENGTH,
@@ -243,119 +243,119 @@ def extract_all_notes(source_path, bpm, duration):
     )
 
     if len(onset_frames) < 5:
-        # Fallback: grilla regular
         beats = librosa.beat.beat_frames(y=y_harmonic, sr=sr, hop_length=HOP_LENGTH)
         if len(beats) > 2:
             onset_frames = beats
         else:
-            beat_ms = 60.0 / max(bpm, 60)
-            onset_frames = np.arange(0, len(y) // HOP_LENGTH, max(1, int(beat_ms * sr / HOP_LENGTH)))
+            hop_sec = HOP_LENGTH / sr
+            stride = max(1, int(0.15 / hop_sec))
+            onset_frames = np.arange(0, len(y) // HOP_LENGTH, stride)
 
-    # CQT para detección de pitch (resolución musical)
+    log(f"  {len(onset_frames)} onsets detectados")
+
+    # CQT con resolución completa
     log("  Computando CQT...")
     cqt = np.abs(librosa.cqt(y_harmonic, sr=sr, hop_length=HOP_LENGTH,
                               fmin=librosa.note_to_hz('C2'),
                               n_bins=72, bins_per_octave=12))
-    cqt_db = librosa.amplitude_to_db(cqt, ref=np.max)
+    # No pasar a dB - usar amplitud lineal para mejor preservación de armónicos
+    # Normalizar cada columna
+    cqt_norm = cqt / (np.max(cqt, axis=0, keepdims=True) + 1e-10)
 
-    # Threshold de energía dinámico
-    threshold = np.percentile(cqt_db[cqt_db > -80], ENERGY_PERCENTILE)
-
-    # Mapear bins de CQT a notas MIDI
-    # CQT bin 0 = C2 (MIDI 36)
-    midi_bins = np.arange(36, 36 + cqt.shape[0])
-
+    midi_bins = np.arange(36, 36 + cqt.shape[0])  # C2=36 a C7=96+
     times = librosa.frames_to_time(np.arange(cqt.shape[1]), sr=sr, hop_length=HOP_LENGTH)
 
-    # Para cada onset → segmento, detectar notas
-    # Agregar onset final
     onset_frames = np.clip(onset_frames, 0, cqt.shape[1] - 1)
     onset_frames = np.unique(np.sort(onset_frames))
-    
-    # Si hay muy pocos onsets, usar todos los frames con energía
-    if len(onset_frames) < 10:
-        # Grid cada beat
-        beat_frames = librosa.beat.beat_frames(y=y_harmonic, sr=sr, hop_length=HOP_LENGTH)
-        if len(beat_frames) > 2:
-            onset_frames = beat_frames
-        else:
-            hop_sec = HOP_LENGTH / sr
-            stride = max(1, int(0.1 / hop_sec))  # cada 100ms
-            onset_frames = np.arange(0, cqt.shape[1], stride)
 
-    # Extraer notas por segmento
-    raw_notes = []  # (time, midi)
-    min_gap = MIN_NOTE_SPACING
+    # Threshold dinámico
+    all_vals = cqt_norm.flatten()
+    threshold = np.percentile(all_vals[all_vals > 0.01], 70)
+
+    raw_segments = []  # (time, set_of_midi_notes)
 
     for i in range(len(onset_frames) - 1):
         f_start = int(onset_frames[i])
         f_end = min(int(onset_frames[i + 1]), cqt.shape[1] - 1)
-        
-        if f_end - f_start < 2:
+
+        if f_end - f_start < 1:
             continue
 
         t = float(times[f_start])
         if t > duration:
             break
 
-        # Tomar el frame con más energía en este segmento
-        segment = cqt_db[:, f_start:f_end]
-        peak_frame = np.unravel_index(np.argmax(segment), segment.shape)[1]
-        frame_data = segment[:, peak_frame]
+        # Promediar TODOS los frames del segmento
+        segment = cqt_norm[:, f_start:f_end]
+        avg_spectrum = np.mean(segment, axis=1)
 
-        # Encontrar picos locales (notas activas)
-        above = frame_data > threshold
-        if not np.any(above):
-            continue
-
-        # Encontrar grupos de bins activos (notas)
-        # Un grupo = pico local que es máximo en su ventana de 3 bins
-        notes_in_frame = []
-        for b in range(2, len(frame_data) - 2):
-            if not above[b]:
+        # Encontrar TODOS los picos locales
+        peaks = []
+        for b in range(2, len(avg_spectrum) - 2):
+            if avg_spectrum[b] < threshold:
                 continue
-            if frame_data[b] > frame_data[b - 1] and frame_data[b] > frame_data[b + 1]:
+            # Es pico local?
+            if (avg_spectrum[b] > avg_spectrum[b-1] and
+                avg_spectrum[b] > avg_spectrum[b-2] and
+                avg_spectrum[b] > avg_spectrum[b+1] and
+                avg_spectrum[b] > avg_spectrum[b+2]):
                 midi_note = int(round(midi_bins[b]))
                 if MIDI_MIN <= midi_note <= MIDI_MAX:
-                    notes_in_frame.append(midi_note)
+                    peaks.append((midi_note, float(avg_spectrum[b])))
 
-        if not notes_in_frame:
-            # Si no hay picos pero hay energía, tomar el máximo
-            max_bin = np.argmax(frame_data)
-            midi_note = int(round(midi_bins[max_bin]))
-            if MIDI_MIN <= midi_note <= MIDI_MAX and frame_data[max_bin] > threshold:
-                notes_in_frame = [midi_note]
+        if not peaks:
+            # Tomar el máximo global
+            max_b = int(np.argmax(avg_spectrum))
+            if avg_spectrum[max_b] > threshold * 0.5:
+                midi_note = int(round(midi_bins[max_b]))
+                if MIDI_MIN <= midi_note <= MIDI_MAX:
+                    peaks = [(midi_note, float(avg_spectrum[max_b]))]
 
-        for note in notes_in_frame:
-            raw_notes.append((t, note))
-
-    # Ordenar por tiempo
-    raw_notes.sort(key=lambda x: (x[0], x[1]))
-
-    # Deduplicar notas muy cercanas (misma nota, mismo tiempo)
-    deduped = []
-    last_time = -1
-    for t, n in raw_notes:
-        if abs(t - last_time) < 0.02:
+        if not peaks:
             continue
-        deduped.append((t, n))
-        last_time = t
 
-    # Separar en notas individuales y acordes
-    # Agrupar notas que ocurren en la misma ventana temporal (CHORD_WINDOW)
-    grouped = {}  # time -> set of notes
-    for t, n in deduped:
-        # Redondear tiempo al grid más cercano
-        rounded_t = round(t / CHORD_WINDOW) * CHORD_WINDOW
-        if rounded_t not in grouped:
-            grouped[rounded_t] = set()
-        grouped[rounded_t].add(n)
+        # Ordenar por fuerza descendente
+        peaks.sort(key=lambda x: -x[1])
+
+        # Filtrar armónicos: si una nota es octava de otra más fuerte, descartarla
+        # (a menos que sea significativamente más fuerte que su fundamental)
+        filtered = []
+        for midi_note, strength in peaks:
+            is_harmonic = False
+            for existing_midi, existing_strength in filtered:
+                diff = abs(midi_note - existing_midi)
+                # Octava (12 semitonos) o quinta (7) arriba de una nota más fuerte
+                if (diff == 12 or diff == 7 or diff == 19 or diff == 24) and strength < existing_strength * 0.6:
+                    is_harmonic = True
+                    break
+            if not is_harmonic:
+                filtered.append((midi_note, strength))
+
+        # Tomar solo las notas más fuertes (max 6)
+        filtered = filtered[:6]
+
+        if len(filtered) == 1:
+            raw_segments.append((t, {filtered[0][0]}))
+        else:
+            raw_segments.append((t, set(n for n, _ in filtered)))
+
+    # Agrupar segmentos cercanos en el tiempo en acordes/notas
+    # Si dos segmentos están a menos de CHORD_WINDOW, combinarlos
+    consolidated = []
+    for t, notes_set in raw_segments:
+        if consolidated and (t - consolidated[-1][0]) < CHORD_WINDOW:
+            # Combinar con el anterior
+            prev_t, prev_notes = consolidated[-1]
+            combined = prev_notes | notes_set
+            consolidated[-1] = (prev_t, combined)
+        else:
+            consolidated.append((t, notes_set))
 
     # Generar output
     notes_output = []
     chords_output = []
 
-    for t, notes_set in sorted(grouped.items()):
+    for t, notes_set in consolidated:
         sorted_notes = sorted(notes_set)
         if len(sorted_notes) == 1:
             notes_output.append({
@@ -365,16 +365,12 @@ def extract_all_notes(source_path, bpm, duration):
                 "velocity": 100,
             })
         else:
-            # Es un acorde: filtrar notas redundantes (muy cercanas)
-            # Conservar max 6 notas por acorde
-            chord_notes = sorted_notes[:6]
             chords_output.append({
                 "time": round(t, 3),
-                "notes": chord_notes,
+                "notes": sorted_notes,
                 "duration": 0.3,
             })
 
-    # Ordenar final
     notes_output.sort(key=lambda n: n["time"])
     chords_output.sort(key=lambda c: c["time"])
 
