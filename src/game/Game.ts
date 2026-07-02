@@ -241,12 +241,21 @@ export class Game {
     const accuracy = s.totalNotes > 0
       ? (((s.perfects + s.goods) / s.totalNotes) * 100).toFixed(1) : '0.0';
 
+    // Calcular estrellas (1-5)
+    const pct = parseFloat(accuracy);
+    const stars = pct >= 95 ? 5 : pct >= 80 ? 4 : pct >= 65 ? 3 : pct >= 40 ? 2 : 1;
+    const starsHTML = Array.from({ length: 5 }, (_, i) =>
+      `<span class="${i < stars ? 'star-on' : 'star-off'}">★</span>`
+    ).join('');
+    const ratingLabel = stars >= 4 ? '🎸 INCREÍBLE!' : stars >= 3 ? '👍 BIEN!' : stars >= 2 ? '💪 OK' : '😅 PRACTICÁ MÁS';
+
     const div = document.createElement('div');
     div.innerHTML = `
       <div id="results-overlay">
         <div class="results-card">
-          <h1>🎸 Resultados</h1>
+          <h1>🎸 ${ratingLabel}</h1>
           <h2>${this.chart?.title || ''}</h2>
+          <div class="results-stars">${starsHTML}</div>
           <div class="results-stats">
             <div class="stat"><span class="stat-value">${s.score}</span><span class="stat-label">Puntaje</span></div>
             <div class="stat perfect"><span class="stat-value">${s.perfects}</span><span class="stat-label">Perfectos</span></div>
@@ -387,13 +396,13 @@ export class Game {
       this.start();
     });
 
-    // YouTube URL
+    // YouTube URL — quedarse en la misma página
     document.getElementById('btn-yt-prepare')?.addEventListener('click', async () => {
       const input = document.getElementById('yt-url') as HTMLInputElement;
       const status = document.getElementById('yt-status');
       if (!input || !status) return;
       const url = input.value.trim();
-      if (!url) { status.textContent = '⚠️ Ingresá una URL de YouTube'; return; }
+      if (!url) { status.textContent = '⚠️ Ingresá una URL de YouTube'; status.className = 'yt-status error'; return; }
 
       const name = url.includes('v=') ? url.split('v=')[1].split('&')[0] : 'song';
       const apiUrl = 'http://157.151.235.227/api/prepare';
@@ -410,23 +419,29 @@ export class Game {
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const result = await resp.json();
         if (result.success) {
-          status.textContent = `✅ ${result.song} preparada! Redirigiendo...`;
+          status.innerHTML = `✅ <strong>${result.song}</strong> preparada! Recargando lista...`;
           status.className = 'yt-status success';
-          // Esperar unos segundos y redirigir a la VM para jugar
-          setTimeout(() => {
-            window.location.href = 'http://157.151.235.227';
-          }, 1500);
+          // Recargar canciones y seleccionar la nueva
+          const discovered = await SongLoader.discoverSongs();
+          this.songs = discovered.filter(s => s.chart !== null) as SongEntry[];
+          const newSong = this.songs.find(s => s.name === result.song);
+          if (newSong) {
+            await this.selectSong(newSong.name);
+          }
+          // Re-renderizar menú
+          div.remove();
+          this.showMenu();
         } else {
           status.textContent = `❌ Error: ${result.error}`;
           status.className = 'yt-status error';
         }
       } catch (e: any) {
         status.innerHTML = `
-          ⚡ No se pudo conectar al servidor. Corré en la terminal:<br>
-          <code style="background:#0a0a1a;padding:6px 10px;border-radius:4px;display:inline-block;margin-top:6px;font-size:12px;">
+          ⚡ No se pudo conectar al servidor remoto. Corré en la terminal:<br>
+          <code style="background:#0a0015;padding:6px 10px;border-radius:6px;display:inline-block;margin-top:6px;font-size:12px;">
           npm run prepare-song "${url}" -- --name "${name}"
           </code><br>
-          <span style="font-size:11px;color:#888;">Después andá a http://157.151.235.227 y recargá</span>
+          <span style="font-size:11px;color:#888;">Después recargá esta página con F5</span>
         `;
         status.className = 'yt-status';
       }

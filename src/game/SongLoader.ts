@@ -2,46 +2,66 @@ import type { ChartData } from '../types';
 
 /**
  * Carga charts desde el servidor (directorio public/songs/).
+ * También puede buscar canciones preparadas vía API remota.
  */
 export class SongLoader {
-  /**
-   * Escanea el directorio public/songs/ y devuelve los nombres de las canciones disponibles.
-   * Busca subdirectorios que contengan chart.json.
-   */
-  static async listSongs(): Promise<string[]> {
-    try {
-      // Intentar cargar un índice de canciones (si existe)
-      const resp = await fetch('/songs/index.json');
-      if (resp.ok) {
-        const index = await resp.json();
-        return index.songs || [];
-      }
-    } catch {
-      // No hay índice, intentar con lista hardcodeada
-    }
-    return [];
-  }
+  private static serverBase = 'http://157.151.235.227';
 
   /**
-   * Lista canciones buscando directamente los chart.json conocidos.
+   * Descubre canciones: primero busca localmente (public/songs/),
+   * después intenta desde el servidor remoto.
    */
   static async discoverSongs(): Promise<{ name: string; chart: ChartData | null }[]> {
-    // Lista de canciones pre-configuradas (se actualiza cuando se prepara una nueva)
-    const knownSongs = [
-      'never-gonna',
-      'test-song',
-    ];
-
+    const localNames = await this.listLocalSongs();
     const results: { name: string; chart: ChartData | null }[] = [];
 
-    for (const name of knownSongs) {
+    // Cargar locales
+    for (const name of localNames) {
       const chart = await SongLoader.loadChart(name);
       if (chart) {
         results.push({ name, chart });
       }
     }
 
+    // También probar canciones del servidor remoto
+    try {
+      const resp = await fetch(`${SongLoader.serverBase}/api/songs`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data.songs)) {
+          for (const remoteName of data.songs) {
+            // Evitar duplicados
+            if (results.some(r => r.name === remoteName)) continue;
+            // Cargar chart desde el server
+            const chart = await SongLoader.loadRemoteChart(remoteName);
+            if (chart) {
+              results.push({ name: remoteName, chart });
+            }
+          }
+        }
+      }
+    } catch {
+      // Servidor no disponible, solo locales
+    }
+
     return results;
+  }
+
+  /**
+   * Lista canciones conocidas localmente
+   */
+  static async listLocalSongs(): Promise<string[]> {
+    try {
+      const resp = await fetch('/songs/index.json');
+      if (resp.ok) {
+        const index = await resp.json();
+        return index.songs || [];
+      }
+    } catch {
+      // No hay índice
+    }
+    // Fallback: canciones pre-configuradas
+    return [];
   }
 
   /**
@@ -62,6 +82,19 @@ export class SongLoader {
       return chart;
     } catch (err) {
       console.warn(`No se pudo cargar ${songName}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Carga chart desde el servidor remoto
+   */
+  static async loadRemoteChart(songName: string): Promise<ChartData | null> {
+    try {
+      const resp = await fetch(`${SongLoader.serverBase}/songs/${songName}/chart.json`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch {
       return null;
     }
   }

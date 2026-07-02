@@ -8,7 +8,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0a0a1a;
+  background: #050210;
   font-family: 'Courier New', Courier, monospace;
   color: #ffffff;
   user-select: none;
@@ -20,7 +20,7 @@ html, body {
   height: 100vh;
 }
 
-/* Menú */
+/* ─── MENÚ — Estilo Guitar Hero ───────────────────────────────────── */
 #menu-overlay,
 #results-overlay {
   position: fixed;
@@ -31,169 +31,124 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 10, 26, 0.95);
+  background: radial-gradient(ellipse at center, rgba(15, 0, 40, 0.98), rgba(5, 2, 16, 0.99));
   z-index: 100;
+}
+
+/* Efecto de rayas de luz en el fondo */
+#menu-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(100, 0, 200, 0.02) 40px,
+      rgba(100, 0, 200, 0.02) 41px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 60px,
+      rgba(68, 0, 150, 0.03) 60px,
+      rgba(68, 0, 150, 0.03) 61px
+    );
+  pointer-events: none;
 }
 
 .menu-card,
 .results-card {
-  background: #1a1a2e;
-  border: 1px solid #333366;
-  border-radius: 16px;
-  padding: 40px;
+  background: linear-gradient(180deg, #120825, #0a0418);
+  border: 1px solid #332266;
+  border-radius: 20px;
+  padding: 36px;
   text-align: center;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 0 40px rgba(0, 100, 255, 0.15);
+  max-width: 520px;
+  width: 92%;
+  box-shadow:
+    0 0 60px rgba(100, 0, 200, 0.15),
+    0 0 120px rgba(50, 0, 100, 0.1),
+    inset 0 1px 0 rgba(150, 100, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Brillo superior tipo escenario */
+.menu-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(120, 50, 255, 0.04) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
 }
 
 h1 {
-  font-size: 42px;
-  margin-bottom: 10px;
-  background: linear-gradient(135deg, #00ddff, #ff66ff);
+  font-size: 44px;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, #00ddff, #cc44ff, #ff66aa);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 0 20px rgba(100, 0, 255, 0.3));
 }
 
 .subtitle {
-  color: #8888aa;
-  font-size: 14px;
-  margin-bottom: 20px;
-}
-
-.midi-status {
-  background: #0d0d1f;
-  border: 1px solid #2a2a4a;
-  border-radius: 8px;
-  padding: 10px 16px;
+  color: rgba(150, 120, 200, 0.7);
   font-size: 13px;
   margin-bottom: 20px;
-  color: #66ff88;
-}
-
-.song-info {
-  background: #0d0d1f;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 16px;
-}
-
-.song-artist {
-  color: #8888aa;
-  font-size: 13px;
-}
-
-.song-duration {
-  color: #555577;
-  font-size: 12px;
-}
-
-.mode-selector {
-  margin-bottom: 24px;
-}
-
-.mode-selector label {
-  display: block;
-  color: #8888aa;
-  font-size: 12px;
-  margin-bottom: 8px;
-  text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.mode-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.mode-btn {
-  background: #0d0d1f;
-  border: 1px solid #333366;
+.midi-status {
+  background: rgba(10, 5, 25, 0.8);
+  border: 1px solid rgba(50, 30, 100, 0.5);
   border-radius: 8px;
-  padding: 10px 20px;
-  color: #8888aa;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
+  padding: 10px 16px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  color: #66ff88;
+  text-shadow: 0 0 8px rgba(100, 255, 136, 0.3);
 }
 
-.mode-btn:hover {
-  border-color: #5555aa;
-  color: #ccccff;
+.audio-status {
+  color: #88aaff;
+  text-shadow: 0 0 8px rgba(100, 150, 255, 0.2);
 }
 
-.mode-btn.active {
-  background: #222255;
-  border-color: #6666ff;
-  color: #ffffff;
-  box-shadow: 0 0 10px rgba(100, 100, 255, 0.3);
-}
-
-.game-btn {
-  background: linear-gradient(135deg, #0055ff, #9933ff);
-  border: none;
-  border-radius: 12px;
-  padding: 14px 48px;
-  color: #ffffff;
-  font-family: 'Courier New', monospace;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.game-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(0, 85, 255, 0.4);
-}
-
-.start-btn {
-  padding: 16px 60px;
-  font-size: 22px;
-}
-
-.hint {
-  color: #555577;
-  font-size: 11px;
-  margin-top: 16px;
-}
-
-.menu-wide {
-  max-width: 600px;
-}
-
-/* Lista de canciones */
 .song-list {
   max-height: 200px;
   overflow-y: auto;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .song-list::-webkit-scrollbar {
   width: 4px;
 }
 .song-list::-webkit-scrollbar-track {
-  background: #0d0d1f;
+  background: rgba(10, 5, 25, 0.5);
 }
 .song-list::-webkit-scrollbar-thumb {
-  background: #333366;
+  background: rgba(100, 50, 200, 0.4);
   border-radius: 2px;
 }
 
 .song-entry {
-  background: #0d0d1f;
-  border: 1px solid #2a2a4a;
-  border-radius: 8px;
+  background: rgba(15, 5, 35, 0.7);
+  border: 1px solid rgba(50, 30, 100, 0.3);
+  border-radius: 10px;
   padding: 10px 14px;
   cursor: pointer;
   transition: all 0.15s;
@@ -204,14 +159,16 @@ h1 {
 }
 
 .song-entry:hover {
-  border-color: #5555aa;
-  background: #151530;
+  border-color: rgba(120, 60, 200, 0.5);
+  background: rgba(25, 10, 45, 0.8);
+  box-shadow: 0 0 15px rgba(100, 50, 200, 0.1);
 }
 
 .song-entry.active {
-  border-color: #6666ff;
-  background: #1a1a3a;
-  box-shadow: 0 0 8px rgba(100, 100, 255, 0.2);
+  border-color: #6644cc;
+  background: rgba(40, 15, 70, 0.7);
+  box-shadow: 0 0 20px rgba(100, 50, 200, 0.2),
+    inset 0 0 20px rgba(100, 50, 200, 0.05);
 }
 
 .song-title {
@@ -225,12 +182,7 @@ h1 {
 
 .song-meta {
   font-size: 11px;
-  color: #666688;
-}
-
-.song-meta {
-  font-size: 11px;
-  color: #666688;
+  color: rgba(150, 120, 200, 0.6);
 }
 
 .song-entry.disabled {
@@ -238,198 +190,248 @@ h1 {
   opacity: 0.5;
   text-align: center;
   padding: 20px;
+  background: rgba(10, 5, 25, 0.3);
 }
 
 .section-label {
   display: block;
-  font-size: 10px;
-  color: #555577;
+  font-size: 9px;
+  color: rgba(150, 120, 200, 0.5);
   text-transform: uppercase;
   letter-spacing: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-align: left;
 }
 
-/* Velocidad */
+/* ─── SELECTORES ───────────────────────────────────────────────────── */
+.mode-selector,
+.difficulty-control,
 .speed-control {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
+.mode-selector label,
+.difficulty-control label,
 .speed-control label {
-  font-size: 12px;
-  color: #8888aa;
-  margin-bottom: 8px;
   display: block;
+  font-size: 10px;
+  color: rgba(150, 120, 200, 0.6);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
+.mode-buttons,
+.difficulty-buttons,
 .speed-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
 }
 
+.mode-btn,
+.diff-btn,
 .speed-btn {
-  background: #0d0d1f;
-  border: 1px solid #333366;
+  background: rgba(15, 5, 35, 0.7);
+  border: 1px solid rgba(50, 30, 100, 0.4);
   border-radius: 8px;
-  padding: 8px 18px;
-  color: #8888aa;
-  font-family: monospace;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.speed-btn:hover {
-  border-color: #5555aa;
-  color: #ccccff;
-}
-
-.speed-btn.active {
-  background: #222255;
-  border-color: #6666ff;
-  color: #fff;
-}
-
-/* Dificultad */
-.difficulty-control {
-  margin-bottom: 20px;
-}
-
-.difficulty-control label {
+  padding: 8px 16px;
+  color: rgba(150, 120, 200, 0.6);
+  font-family: 'Courier New', monospace;
   font-size: 12px;
-  color: #8888aa;
-  margin-bottom: 8px;
-  display: block;
-}
-
-.difficulty-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.diff-btn {
-  background: #0d0d1f;
-  border: 1px solid #333366;
-  border-radius: 8px;
-  padding: 8px 18px;
-  color: #8888aa;
-  font-family: monospace;
-  font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
+  letter-spacing: 0.5px;
 }
 
-.diff-btn:hover {
-  border-color: #5555aa;
-  color: #ccccff;
+.mode-btn:hover,
+.diff-btn:hover,
+.speed-btn:hover {
+  border-color: rgba(120, 60, 200, 0.6);
+  color: rgba(200, 170, 255, 0.8);
 }
 
-.diff-btn.active {
-  background: #222255;
-  color: #fff;
+.mode-btn.active,
+.diff-btn.active,
+.speed-btn.active {
+  background: rgba(50, 20, 100, 0.6);
+  border-color: #6644cc;
+  color: #ffffff;
+  box-shadow:
+    0 0 12px rgba(100, 50, 200, 0.25),
+    inset 0 0 12px rgba(100, 50, 200, 0.1);
 }
 
-#diff-easy.active { border-color: #66ff88; box-shadow: 0 0 8px rgba(100, 255, 136, 0.2); }
-#diff-normal.active { border-color: #ffcc00; box-shadow: 0 0 8px rgba(255, 204, 0, 0.2); }
-#diff-hard.active { border-color: #ff3355; box-shadow: 0 0 8px rgba(255, 51, 85, 0.2); }
+#diff-easy.active {
+  border-color: #44ff88;
+  box-shadow: 0 0 12px rgba(68, 255, 136, 0.25),
+    inset 0 0 12px rgba(68, 255, 136, 0.05);
+  color: #88ffaa;
+}
+#diff-normal.active {
+  border-color: #ffcc44;
+  box-shadow: 0 0 12px rgba(255, 204, 68, 0.25),
+    inset 0 0 12px rgba(255, 204, 68, 0.05);
+  color: #ffdd66;
+}
+#diff-hard.active {
+  border-color: #ff3355;
+  box-shadow: 0 0 12px rgba(255, 51, 85, 0.25),
+    inset 0 0 12px rgba(255, 51, 85, 0.05);
+  color: #ff6688;
+}
 
-/* YouTube */
+/* ─── BOTÓN PRINCIPAL ──────────────────────────────────────────────── */
+.game-btn {
+  background: linear-gradient(135deg, #4400cc, #8822ff);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 40px;
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(100, 50, 200, 0.3);
+}
+
+.game-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(120, 50, 255, 0.5);
+}
+
+.start-btn {
+  padding: 14px 50px;
+  font-size: 22px;
+  margin-top: 4px;
+}
+
+/* ─── SECCIÓN YOUTUBE ──────────────────────────────────────────────── */
 .youtube-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #222244;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(50, 30, 100, 0.3);
 }
 
 .youtube-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .yt-input {
   flex: 1;
-  background: #0d0d1f;
-  border: 1px solid #333366;
+  background: rgba(10, 5, 25, 0.8);
+  border: 1px solid rgba(50, 30, 100, 0.5);
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   color: #fff;
   font-family: monospace;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
+  transition: border-color 0.15s;
 }
 
 .yt-input:focus {
-  border-color: #6666ff;
+  border-color: #6644cc;
+  box-shadow: 0 0 10px rgba(100, 50, 200, 0.15);
 }
 
 .yt-input::placeholder {
-  color: #444466;
+  color: rgba(100, 80, 150, 0.4);
 }
 
 .yt-btn {
-  background: #222255;
-  border: 1px solid #5555aa;
+  background: linear-gradient(135deg, #3322aa, #6633dd);
+  border: none;
   border-radius: 8px;
-  padding: 10px 20px;
+  padding: 10px 18px;
   color: #fff;
   font-family: monospace;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: bold;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.15s;
 }
 
 .yt-btn:hover {
-  background: #3333aa;
+  background: linear-gradient(135deg, #4422cc, #7744ee);
+  box-shadow: 0 0 15px rgba(100, 50, 200, 0.3);
 }
 
 .yt-status {
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 11px;
-  color: #8888aa;
-  min-height: 16px;
+  color: rgba(150, 120, 200, 0.6);
+  min-height: 14px;
+  line-height: 1.4;
 }
 
-.yt-status.loading { color: #ffcc00; }
+.yt-status.loading { color: #ffcc44; }
 .yt-status.success { color: #66ff88; }
 .yt-status.error { color: #ff3355; }
 
-/* Resultados */
+/* ─── RESULTADOS ───────────────────────────────────────────────────── */
 .results-card h2 {
-  color: #8888aa;
-  font-size: 16px;
-  margin-bottom: 24px;
+  color: rgba(150, 120, 200, 0.7);
+  font-size: 15px;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+.results-stars {
+  font-size: 36px;
+  margin-bottom: 16px;
+  letter-spacing: 4px;
+}
+
+.results-stars .star-on {
+  color: #ffdd44;
+  text-shadow: 0 0 15px rgba(255, 221, 68, 0.5);
+}
+.results-stars .star-off {
+  color: rgba(50, 30, 80, 0.4);
 }
 
 .results-stats {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
 .stat {
-  background: #0d0d1f;
+  background: rgba(15, 5, 35, 0.6);
+  border: 1px solid rgba(50, 30, 100, 0.2);
   border-radius: 10px;
-  padding: 14px 8px;
+  padding: 12px 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
   color: #ffffff;
 }
 
 .stat-label {
-  font-size: 10px;
-  color: #666688;
+  font-size: 9px;
+  color: rgba(150, 120, 200, 0.5);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.stat.perfect .stat-value { color: #00ff88; }
-.stat.good .stat-value { color: #ffcc00; }
-.stat.miss .stat-value { color: #ff3355; }
+.stat.perfect .stat-value { color: #00ff88; text-shadow: 0 0 10px rgba(0, 255, 136, 0.3); }
+.stat.good .stat-value { color: #ffdd00; text-shadow: 0 0 10px rgba(255, 221, 0, 0.3); }
+.stat.miss .stat-value { color: #ff3355; text-shadow: 0 0 10px rgba(255, 51, 85, 0.3); }
+
+.hint {
+  color: rgba(100, 80, 150, 0.4);
+  font-size: 10px;
+  margin-top: 12px;
+}
