@@ -1,0 +1,338 @@
+{
+  "title": "8",
+  "artist": "Fuga villera No.2",
+  "bpm": 120,
+  "duration": 16.0,
+  "audioFile": "",
+  "notes": [
+    {
+      "time": 0.0,
+      "note": 72,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 0.125,
+      "note": 72,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 0.25,
+      "note": 72,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 0.375,
+      "note": 72,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 0.5,
+      "note": 74,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 0.625,
+      "note": 75,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 0.75,
+      "note": 74,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 1.0,
+      "note": 74,
+      "duration": 0.5,
+      "velocity": 100
+    },
+    {
+      "time": 1.625,
+      "note": 74,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 1.75,
+      "note": 72,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 1.875,
+      "note": 71,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 2.0,
+      "note": 72,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 2.125,
+      "note": 74,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 2.25,
+      "note": 72,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 2.5,
+      "note": 72,
+      "duration": 1.5,
+      "velocity": 100
+    },
+    {
+      "time": 4.0,
+      "note": 60,
+      "duration": 0.5,
+      "velocity": 100
+    },
+    {
+      "time": 4.5,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 4.625,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 4.75,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 4.875,
+      "note": 63,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 5.0,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 5.125,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 5.25,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 5.375,
+      "note": 63,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 5.5,
+      "note": 65,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 5.75,
+      "note": 67,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 6.0,
+      "note": 67,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 6.125,
+      "note": 65,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 6.25,
+      "note": 63,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 6.5,
+      "note": 63,
+      "duration": 1.5,
+      "velocity": 100
+    },
+    {
+      "time": 8.0,
+      "note": 51,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 8.125,
+      "note": 50,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 8.25,
+      "note": 48,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 8.625,
+      "note": 55,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 8.75,
+      "note": 55,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 8.875,
+      "note": 55,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 9.0,
+      "note": 55,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 9.25,
+      "note": 63,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 9.5,
+      "note": 62,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 9.625,
+      "note": 59,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 9.75,
+      "note": 62,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 10.0,
+      "note": 63,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 10.25,
+      "note": 60,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 10.5,
+      "note": 60,
+      "duration": 1.5,
+      "velocity": 100
+    },
+    {
+      "time": 12.375,
+      "note": 51,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 12.5,
+      "note": 50,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 12.625,
+      "note": 48,
+      "duration": 0.125,
+      "velocity": 100
+    },
+    {
+      "time": 12.75,
+      "note": 47,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 13.0,
+      "note": 47,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 13.25,
+      "note": 55,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 13.5,
+      "note": 55,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 13.75,
+      "note": 55,
+      "duration": 0.25,
+      "velocity": 100
+    },
+    {
+      "time": 14.0,
+      "note": 48,
+      "duration": 2.0,
+      "velocity": 100
+    }
+  ],
+  "chords": [
+    {
+      "time": 0.0,
+      "notes": [
+        71,
+        75,
+        78
+      ],
+      "duration": 16.0
+    }
+  ]
+}
