@@ -78,8 +78,8 @@ export class Game {
   getSpeed(): number { return this.speed; }
 
   async init(): Promise<void> {
-    this.midiConnected = await this.midi.init();
-    await this.audio.init();
+    try { this.midiConnected = await this.midi.init(); } catch { this.midiConnected = false; }
+    try { await this.audio.init(); } catch { console.warn('AudioContext no disponible'); }
     await this.loadSongList();
     if (this.songs.length > 0) {
       await this.selectSong(this.songs[0].name);
@@ -101,7 +101,7 @@ export class Game {
     this.chart = chart;
 
     const audioUrl = SongLoader.getAudioUrl(songName, chart);
-    await this.audio.load(audioUrl, chart);
+    try { await this.audio.load(audioUrl, chart); } catch { console.warn('Audio load falló'); }
 
     const totalNotes = this.filterByDifficulty(chart.notes).length + this.filterChordsByDifficulty(chart.chords).length;
     this.score = new ScoreManager(totalNotes);
@@ -196,9 +196,13 @@ export class Game {
     this.running = true;
     this.lastFrameTime = performance.now();
 
-    // Iniciar audio (necesita gesto del usuario)
-    await this.audio.resumeContext();
-    this.audio.play();
+    // Iniciar audio (necesita gesto del usuario) — si falla, igual juega
+    try {
+      await this.audio.resumeContext();
+      await this.audio.play();
+    } catch (e) {
+      console.warn('Audio no disponible, jugando sin sonido:', e);
+    }
 
     this.loop();
   }
@@ -393,7 +397,10 @@ export class Game {
     // Start button
     document.getElementById('btn-start')?.addEventListener('click', () => {
       div.remove();
-      this.start();
+      this.start().catch(e => {
+        console.error('Error al iniciar:', e);
+        this.showMenu();
+      });
     });
 
     // YouTube URL — quedarse en la misma página
