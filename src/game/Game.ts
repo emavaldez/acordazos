@@ -101,7 +101,7 @@ export class Game {
     this.chart = chart;
 
     const audioUrl = SongLoader.getAudioUrl(songName, chart);
-    await this.audio.load(audioUrl);
+    await this.audio.load(audioUrl, chart);
 
     const totalNotes = this.filterByDifficulty(chart.notes).length + this.filterChordsByDifficulty(chart.chords).length;
     this.score = new ScoreManager(totalNotes);
