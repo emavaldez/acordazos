@@ -10,6 +10,11 @@
     <div id="app">
       <canvas id="game-canvas"></canvas>
     </div>
+    <script>
+      window.__errors = [];
+      window.addEventListener('error', e => window.__errors.push(e.message));
+      window.addEventListener('unhandledrejection', e => window.__errors.push('REJ: ' + e.reason));
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
