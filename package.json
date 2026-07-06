@@ -7,8 +7,6 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "prepare-song": "python3 scripts/prepare_song.py",
-    "serve": "node scripts/server.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -16,8 +14,5 @@
     "typescript": "~6.0.2",
     "vite": "^8.1.0",
     "vitest": "^4.1.10"
-  },
-  "dependencies": {
-    "express": "^5.2.1"
   }
 }
