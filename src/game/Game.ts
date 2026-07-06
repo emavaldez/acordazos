@@ -25,6 +25,7 @@ export class Game {
   private mode: GameMode = 'both';
   private difficulty: Difficulty = 'normal';
   private speed: number = 1; // 0.5 = mitad de velocidad, 1 = normal, 2 = doble
+  private latencyOffset: number = 0; // ms de compensacion de latencia (positivo = adelantar notas)
 
   private currentSong: string = '';
   private chart: ChartData | null = null;
@@ -77,12 +78,20 @@ export class Game {
   }
   getSpeed(): number { return this.speed; }
 
+  setLatencyOffset(ms: number): void {
+    this.latencyOffset = Math.max(-500, Math.min(500, ms));
+  }
+  getLatencyOffset(): number { return this.latencyOffset; }
+
   async init(): Promise<void> {
     try { this.midiConnected = await this.midi.init(); } catch { this.midiConnected = false; }
     try { await this.audio.init(); } catch { console.warn('AudioContext no disponible'); }
     await this.loadSongList();
     if (this.songs.length > 0) {
       await this.selectSong(this.songs[0].name);
+    }
+    if (!this.midiConnected) {
+      this.showMIDIError();
     }
   }
 
@@ -161,7 +170,9 @@ export class Game {
     const expectedList = this.expectedNotes.get(`${note}`);
     if (!expectedList) return;
 
-    const result = this.hitDetector.detect(note, this.gameTime, expectedList);
+    // Aplicar compensacion de latencia: ajustar el tiempo real
+    const adjustedTime = this.gameTime + (this.latencyOffset / 1000);
+    const result = this.hitDetector.detect(note, adjustedTime, expectedList);
     if (result) {
       const found = expectedList.find(
         e => e.note === result.note && Math.abs(e.time - result.expectedTime) < 0.01 && !e.hit
@@ -190,7 +201,7 @@ export class Game {
     if (!this.chart || this.running) return;
 
     // Detener cualquier audio anterior
-    this.audio.pause();
+    this.audio.stop();
 
     this.gameTime = 0;
     this.score.reset();
@@ -199,15 +210,17 @@ export class Game {
     this.running = true;
     this.lastFrameTime = performance.now();
 
-    // Iniciar audio (necesita gesto del usuario) — si falla, igual juega
+    // Iniciar el loop INMEDIATAMENTE — no esperar al audio
+    this.loop();
+
+    // Iniciar audio en background — si falla, igual juega
     try {
+      await this.audio.init();
       await this.audio.resumeContext();
       await this.audio.play();
     } catch (e) {
       console.warn('Audio no disponible, jugando sin sonido:', e);
     }
-
-    this.loop();
   }
 
   pause(): void {
@@ -282,7 +295,47 @@ export class Game {
     });
   }
 
+  private showMIDIError(): void {
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <div id="midi-error-overlay">
+        <div class="midi-error-card">
+          <h1>⚠️ Sin teclado MIDI</h1>
+          <p>No se detectó un teclado MIDI conectado.</p>
+          <p class="midi-error-help">Conectá tu teclado MIDI y recargá la página.</p>
+          <p class="midi-error-help">Si ya lo conectaste, abrí la consola del navegador (F12) para ver si hay errores.</p>
+          <p class="midi-error-note">Podés igual jugar con el teclado de la computadora como fallback.</p>
+          <button id="btn-continue-no-midi" class="game-btn">Jugar sin MIDI</button>
+          <button id="btn-retry-midi" class="game-btn">Reintentar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(div);
+    document.getElementById('btn-continue-no-midi')?.addEventListener('click', () => {
+      div.remove();
+      this.showMenu();
+    });
+    document.getElementById('btn-retry-midi')?.addEventListener('click', async () => {
+      div.remove();
+      try {
+        this.midiConnected = await this.midi.init();
+      } catch {
+        this.midiConnected = false;
+      }
+      if (this.midiConnected) {
+        this.showMenu();
+      } else {
+        this.showMIDIError();
+      }
+    });
+  }
+
   showMenu(): void {
+    // Limpiar overlays y contenedores anteriores
+    document.getElementById('menu-container')?.remove();
+    document.getElementById('results-overlay')?.parentElement?.remove();
+    document.getElementById('midi-error-overlay')?.parentElement?.remove();
+
     const midiStatus = this.midiConnected
       ? `✅ ${this.midi.getDeviceName() || 'Teclado MIDI conectado'}`
       : '⚠️ Sin teclado MIDI';
@@ -299,9 +352,10 @@ export class Game {
           <span class="song-meta">${s.chart.artist} · ${this.formatDuration(s.chart.duration)} · 🎸${s.chart.chords.length} 🎵${s.chart.notes.length}</span>
         </div>
       `).join('')
-      : '<div class="song-entry disabled">🎵 No hay canciones. Prepará una con YouTube abajo.</div>';
+      : '<div class="song-entry disabled">🎵 No hay canciones disponibles.</div>';
 
     const div = document.createElement('div');
+    div.id = 'menu-container';
     div.innerHTML = `
       <div id="menu-overlay">
         <div class="menu-card">
@@ -340,16 +394,17 @@ export class Game {
             </div>
           </div>
 
-          <button id="btn-start" class="game-btn start-btn">▶ EMPEZAR</button>
-
-          <div class="youtube-section">
-            <label class="section-label">🎬 PREPARAR DESDE YOUTUBE</label>
-            <div class="youtube-row">
-              <input type="text" id="yt-url" class="yt-input" placeholder="https://youtube.com/watch?v=..." />
-              <button id="btn-yt-prepare" class="yt-btn">Preparar</button>
+          <div class="latency-control">
+            <label>Latencia: <span id="latency-label">${this.latencyOffset}ms</span></label>
+            <div class="latency-buttons">
+              <button id="latency-down" class="latency-btn">-50ms</button>
+              <button id="latency-reset" class="latency-btn">0ms</button>
+              <button id="latency-up" class="latency-btn">+50ms</button>
             </div>
-            <div id="yt-status" class="yt-status"></div>
+            <small class="latency-help">Negativo = notas llegan antes · Positivo = notas llegan después</small>
           </div>
+
+          <button id="btn-start" class="game-btn start-btn">▶ EMPEZAR</button>
         </div>
       </div>
     `;
@@ -363,7 +418,11 @@ export class Game {
         div.querySelectorAll('.song-entry').forEach(e => e.classList.remove('active'));
         el.classList.add('active');
         await this.selectSong(name);
-        this.showMenu();
+        // Actualizar estado del audio en el menú SIN recrear el div
+        const audioStatus = div.querySelector('.audio-status');
+        if (audioStatus && this.audio.loaded) {
+          audioStatus.textContent = `🔊 Audio cargado (${this.formatDuration(this.audio.getDuration())})`;
+        }
       });
     });
 
@@ -382,6 +441,15 @@ export class Game {
     document.getElementById('speed-normal')?.addEventListener('click', () => { this.setSpeed(1); div.remove(); this.showMenu(); });
     document.getElementById('speed-double')?.addEventListener('click', () => { this.setSpeed(2); div.remove(); this.showMenu(); });
 
+    // Latency buttons
+    const updateLatencyLabel = () => {
+      const label = document.getElementById('latency-label');
+      if (label) label.textContent = `${this.latencyOffset}ms`;
+    };
+    document.getElementById('latency-down')?.addEventListener('click', () => { this.setLatencyOffset(this.latencyOffset - 50); updateLatencyLabel(); });
+    document.getElementById('latency-reset')?.addEventListener('click', () => { this.setLatencyOffset(0); updateLatencyLabel(); });
+    document.getElementById('latency-up')?.addEventListener('click', () => { this.setLatencyOffset(this.latencyOffset + 50); updateLatencyLabel(); });
+
     // Difficulty buttons
     const setDiff = (d: Difficulty) => {
       this.setDifficulty(d);
@@ -399,62 +467,11 @@ export class Game {
 
     // Start button
     document.getElementById('btn-start')?.addEventListener('click', () => {
-      div.remove();
+      document.getElementById('menu-container')?.remove();
       this.start().catch(e => {
         console.error('Error al iniciar:', e);
         this.showMenu();
       });
-    });
-
-    // YouTube URL — quedarse en la misma página
-    document.getElementById('btn-yt-prepare')?.addEventListener('click', async () => {
-      const input = document.getElementById('yt-url') as HTMLInputElement;
-      const status = document.getElementById('yt-status');
-      if (!input || !status) return;
-      const url = input.value.trim();
-      if (!url) { status.textContent = '⚠️ Ingresá una URL de YouTube'; status.className = 'yt-status error'; return; }
-
-      const name = url.includes('v=') ? url.split('v=')[1].split('&')[0] : 'song';
-      const apiUrl = 'http://157.151.235.227/api/prepare';
-
-      status.textContent = '⏳ Descargando y analizando en el servidor (puede tardar varios minutos)...';
-      status.className = 'yt-status loading';
-
-      try {
-        const resp = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, name }),
-        });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const result = await resp.json();
-        if (result.success) {
-          status.innerHTML = `✅ <strong>${result.song}</strong> preparada! Recargando lista...`;
-          status.className = 'yt-status success';
-          // Recargar canciones y seleccionar la nueva
-          const discovered = await SongLoader.discoverSongs();
-          this.songs = discovered.filter(s => s.chart !== null) as SongEntry[];
-          const newSong = this.songs.find(s => s.name === result.song);
-          if (newSong) {
-            await this.selectSong(newSong.name);
-          }
-          // Re-renderizar menú
-          div.remove();
-          this.showMenu();
-        } else {
-          status.textContent = `❌ Error: ${result.error}`;
-          status.className = 'yt-status error';
-        }
-      } catch (e: any) {
-        status.innerHTML = `
-          ⚡ No se pudo conectar al servidor remoto. Corré en la terminal:<br>
-          <code style="background:#0a0015;padding:6px 10px;border-radius:6px;display:inline-block;margin-top:6px;font-size:12px;">
-          npm run prepare-song "${url}" -- --name "${name}"
-          </code><br>
-          <span style="font-size:11px;color:#888;">Después recargá esta página con F5</span>
-        `;
-        status.className = 'yt-status';
-      }
     });
   }
 

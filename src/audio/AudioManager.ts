@@ -6,191 +6,238 @@ import type { ChartData } from '../types';
  * Si no, sintetiza las notas del chart con osciladores.
  */
 export class AudioManager {
-  private audioContext: AudioContext | null = null;
-  private source: AudioBufferSourceNode | null = null;
-  private gainNode: GainNode | null = null;
-  private startTime: number = 0;
-  private pausedAt: number = 0;
-  private buffer: AudioBuffer | null = null;
-  private _duration: number = 0;
-  private _loaded: boolean = false;
+  private ctx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private masterGain: GainNode | null = null;
+  private audioEl: HTMLAudioElement | null = null;
 
-  private scheduledOscillators: OscillatorNode[] = [];
-  private chart: ChartData | null = null;
-  private synthMode: boolean = false;
+  private synthChart: ChartData | null = null;
+  private activeOscillators: Map<number, { osc: OscillatorNode; gain: GainNode }> = new Map();
+  private nextNoteId = 0;
 
-  async init(): Promise<void> {
-    this.audioContext = new AudioContext();
-    this.gainNode = this.audioContext.createGain();
-    this.gainNode.connect(this.audioContext.destination);
-    this.gainNode.gain.value = 0.3;
-  }
+  started = false;
+  synthActive = false;
+
+  volume = 0.12;
+  startTime = 0;
 
   get loaded(): boolean {
-    return this._loaded;
+    return this.started || this.synthActive || this.audioEl !== null;
   }
 
-  /** Detiene todo lo que esté sonando */
-  private stopAllOscillators(): void {
-    for (const osc of this.scheduledOscillators) {
-      try { osc.stop(); } catch { /* ya terminó */ }
-      try { osc.disconnect(); } catch { /* */ }
-    }
-    this.scheduledOscillators = [];
+  get isPlaying(): boolean {
+    if (this.audioEl) return !this.audioEl.paused;
+    return this.synthActive;
   }
 
-  async load(url: string, chart?: ChartData): Promise<boolean> {
-    if (!this.audioContext) return false;
-
-    // Detener cualquier audio anterior
-    this.stopAllOscillators();
-    this.pause();
-    this.buffer = null;
-    this.synthMode = false;
-    this._loaded = false;
-
-    // Si no hay URL válida o es el default de audio.mp3, usar síntesis
-    if ((!url || url === '/' || url.endsWith('/audio.mp3')) && chart && chart.notes.length > 0) {
-      this.chart = chart;
-      this.synthMode = true;
-      this._duration = chart.duration;
-      this._loaded = true;
-      console.log(`Síntesis: ${chart.notes.length} notas, ${chart.duration.toFixed(0)}s`);
-      return true;
+  get currentNote(): number {
+    if (!this.ctx || !this.synthChart) return 0;
+    const t = this.ctx.currentTime - this.startTime;
+    const notes = this.synthChart.notes;
+    for (let i = 0; i < notes.length; i++) {
+      if (notes[i].time > t) return i;
     }
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        if (chart && chart.notes.length > 0) {
-          this.chart = chart;
-          this.synthMode = true;
-          this._duration = chart.duration;
-          this._loaded = true;
-          return true;
-        }
-        return false;
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      this.buffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      this._duration = this.buffer.duration;
-      this._loaded = true;
-      this.synthMode = false;
-      return true;
-    } catch {
-      if (chart && chart.notes.length > 0) {
-        this.chart = chart;
-        this.synthMode = true;
-        this._duration = chart.duration;
-        this._loaded = true;
-        return true;
-      }
-      this._loaded = false;
-      return false;
-    }
+    return notes.length;
   }
 
-  private midiToFreq(midi: number): number {
-    return 440 * Math.pow(2, (midi - 69) / 12);
+  get currentTime(): number {
+    if (!this.ctx) return 0;
+    return this.synthActive
+      ? this.ctx.currentTime - this.startTime
+      : this.audioEl?.currentTime ?? 0;
   }
 
-  /**
-   * Programa las notas del chart como osciladores.
-   * SOLO notas individuales, NO acordes.
-   */
-  private scheduleSynthNotes(): void {
-    if (!this.audioContext || !this.chart) return;
-
-    const now = this.audioContext.currentTime;
-
-    for (const note of this.chart.notes) {
-      this.scheduleNote(note.note, now + note.time, note.duration, note.velocity);
+  get duration(): number {
+    if (this.audioEl) return this.audioEl.duration || 0;
+    if (this.synthChart) {
+      const notes = this.synthChart.notes;
+      return notes.length > 0 ? notes[notes.length - 1].time + 1 : 0;
     }
+    return 0;
   }
 
-  private scheduleNote(midi: number, startTime: number, duration: number, velocity: number): void {
-    if (!this.audioContext || !this.gainNode) return;
-
-    const freq = this.midiToFreq(midi);
-    const osc = this.audioContext.createOscillator();
-    const noteGain = this.audioContext.createGain();
-
-    // Sine wave = sonido suave tipo flauta
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-
-    // Envelope suave: attack rápido, sustain bajo, release
-    const vol = (velocity / 127) * 0.15;
-    noteGain.gain.setValueAtTime(0, startTime);
-    noteGain.gain.linearRampToValueAtTime(vol, startTime + 0.02);
-    noteGain.gain.setValueAtTime(vol * 0.7, startTime + duration * 0.5);
-    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-    osc.connect(noteGain);
-    noteGain.connect(this.gainNode);
-    osc.start(startTime);
-    osc.stop(startTime + duration + 0.05);
-
-    this.scheduledOscillators.push(osc);
-  }
-
-  async play(): Promise<void> {
-    if (!this.audioContext) return;
-
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+  async init(): Promise<void> {
+    if (!this.ctx) {
+      this.ctx = new AudioContext();
     }
-
-    if (this.synthMode) {
-      this.stopAllOscillators();
-      this.scheduleSynthNotes();
-      this.startTime = this.audioContext.currentTime;
-      this.pausedAt = 0;
-      return;
-    }
-
-    if (!this.buffer) return;
-
-    this.source = this.audioContext.createBufferSource();
-    this.source.buffer = this.buffer;
-    this.source.connect(this.gainNode!);
-    this.source.start(0, this.pausedAt);
-    this.startTime = this.audioContext.currentTime - this.pausedAt;
-    this.pausedAt = 0;
-  }
-
-  pause(): void {
-    if (this.synthMode) {
-      this.stopAllOscillators();
-      if (this.audioContext) {
-        this.pausedAt = this.audioContext.currentTime - this.startTime;
-      }
-      return;
-    }
-
-    if (this.source && this.audioContext) {
-      this.pausedAt = this.audioContext.currentTime - this.startTime;
-      try { this.source.stop(); } catch { /* */ }
-      this.source.disconnect();
-      this.source = null;
-    }
-  }
-
-  getCurrentTime(): number {
-    if (!this.audioContext) return this.pausedAt;
-    if (this.synthMode || this.source) {
-      return this.audioContext.currentTime - this.startTime;
-    }
-    return this.pausedAt;
-  }
-
-  getDuration(): number {
-    return this._duration;
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 256;
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.value = this.volume;
+    this.masterGain.connect(this.analyser);
+    this.analyser.connect(this.ctx.destination);
+    this.started = false;
+    this.synthActive = false;
   }
 
   async resumeContext(): Promise<void> {
-    if (this.audioContext?.state === 'suspended') {
-      await this.audioContext.resume();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume();
+      } catch {
+        console.warn('AudioContext resume falló');
+      }
+    }
+  }
+
+  async load(audioUrl: string, chart: ChartData): Promise<void> {
+    // Detener TODO lo que esté sonando
+    this.stopAllOscillators();
+    this.synthActive = false;
+
+    // Limpiar audio anterior
+    if (this.audioEl) {
+      this.audioEl.pause();
+      this.audioEl.src = '';
+      this.audioEl = null;
+    }
+
+    // Guardar chart para síntesis (sin reproducir nada)
+    this.synthChart = chart;
+    this.started = false;
+
+    // Intentar cargar MP3 — si no existe, usar síntesis
+    await new Promise<void>(resolve => {
+      try {
+        const audioEl = new Audio();
+        audioEl.preload = 'auto';
+        let resolved = false;
+        const done = () => { if (!resolved) { resolved = true; resolve(); } };
+        // Si carga metadata, hay audio real
+        audioEl.addEventListener('loadedmetadata', () => {
+          this.audioEl = audioEl;
+          done();
+        }, { once: true });
+        // Si falla (404 o error), no hay audio — usar síntesis
+        audioEl.addEventListener('error', () => {
+          this.audioEl = null;
+          done();
+        }, { once: true });
+        audioEl.src = audioUrl;
+        // Timeout de 2s: si no carga, asumir síntesis
+        setTimeout(done, 2000);
+      } catch {
+        this.audioEl = null;
+        resolve();
+      }
+    });
+  }
+
+  async play(): Promise<void> {
+    if (this.audioEl) {
+      try {
+        await this.audioEl.play();
+        this.started = true;
+      } catch (e) {
+        console.warn('Audio play falló:', e);
+      }
+    } else if (this.synthChart) {
+      // Detener osciladores anteriores ANTES de empezar los nuevos
+      this.stopAllOscillators();
+      this.synthActive = true;
+      this.playSynthNotes();
+    }
+  }
+
+  pause(): void {
+    if (this.audioEl) {
+      this.audioEl.pause();
+    } else {
+      this.synthActive = false;
+    }
+  }
+
+  stop(): void {
+    if (this.audioEl) {
+      this.audioEl.pause();
+      this.audioEl.currentTime = 0;
+      this.started = false;
+    }
+    this.stopAllOscillators();
+    this.synthActive = false;
+  }
+
+  private stopAllOscillators(): void {
+    for (const [, { osc, gain }] of this.activeOscillators) {
+      try {
+        gain.gain.setValueAtTime(0, this.ctx!.currentTime);
+        osc.stop(this.ctx!.currentTime + 0.01);
+      } catch { /* ya está parado */ }
+    }
+    this.activeOscillators.clear();
+    this.nextNoteId = 0;
+  }
+
+  private playSynthNotes(): void {
+    if (!this.ctx || !this.synthChart) return;
+
+    this.startTime = this.ctx.currentTime + 0.1; // empezar en ~100ms
+    const notes = this.synthChart.notes;
+
+    for (const note of notes) {
+      const id = this.nextNoteId++;
+      const freq = 440 * Math.pow(2, (note.note - 69) / 12);
+      const noteStart = this.startTime + note.time;
+
+      if (noteStart < this.ctx.currentTime) continue;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      // Envelope ADSR suave
+      const attack = 0.005;
+      const release = 0.08;
+      const noteDuration = Math.max(note.duration, 0.05);
+      const vol = this.volume;
+
+      gain.gain.setValueAtTime(0, noteStart);
+      gain.gain.linearRampToValueAtTime(vol, noteStart + attack);
+      gain.gain.setValueAtTime(vol, noteStart + noteDuration - release);
+      gain.gain.linearRampToValueAtTime(0, noteStart + noteDuration);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+
+      osc.start(noteStart);
+      osc.stop(noteStart + noteDuration + 0.01);
+
+      this.activeOscillators.set(id, { osc, gain });
+
+      // Limpiar oscilador cuando termine
+      osc.addEventListener('ended', () => {
+        this.activeOscillators.delete(id);
+      });
+    }
+
+    // Cuando termine la última nota, desactivar
+    const lastNote = notes[notes.length - 1];
+    if (lastNote) {
+      const endTime = this.startTime + lastNote.time + lastNote.duration + 0.1;
+      setTimeout(() => {
+        this.synthActive = false;
+        this.stopAllOscillators();
+      }, (endTime - this.ctx.currentTime) * 1000);
+    }
+  }
+
+  getAnalyserData(): Uint8Array {
+    if (!this.analyser) return new Uint8Array(0);
+    const data = new Uint8Array(this.analyser.frequencyBinCount);
+    this.analyser.getByteFrequencyData(data);
+    return data;
+  }
+
+  getDuration(): number {
+    return this.duration;
+  }
+
+  setVolume(v: number): void {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.volume;
     }
   }
 }

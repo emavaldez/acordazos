@@ -435,3 +435,89 @@ h1 {
   font-size: 10px;
   margin-top: 12px;
 }
+/* MIDI Error Screen */
+#midi-error-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(5, 0, 15, 0.95);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+
+.midi-error-card {
+  background: linear-gradient(135deg, rgba(30, 10, 50, 0.95), rgba(15, 5, 25, 0.95));
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  text-align: center;
+  color: #e0d0f0;
+}
+
+.midi-error-card h1 {
+  font-size: 28px;
+  margin-bottom: 16px;
+  color: #ff6655;
+}
+
+.midi-error-card p {
+  margin: 8px 0;
+  color: #c0b0d0;
+}
+
+.midi-error-help {
+  font-size: 13px;
+  color: rgba(180, 160, 200, 0.7);
+}
+
+.midi-error-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: rgba(100, 221, 255, 0.6);
+  font-style: italic;
+}
+
+.midi-error-card .game-btn {
+  margin: 8px;
+}
+
+/* Latency Control */
+.latency-control {
+  margin: 12px 0;
+  text-align: center;
+}
+
+.latency-control label {
+  display: block;
+  font-size: 12px;
+  color: rgba(200, 180, 220, 0.8);
+  margin-bottom: 6px;
+}
+
+.latency-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.latency-btn {
+  background: rgba(68, 221, 255, 0.1);
+  border: 1px solid rgba(68, 221, 255, 0.3);
+  color: #44ddff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.latency-btn:hover {
+  background: rgba(68, 221, 255, 0.2);
+  border-color: rgba(68, 221, 255, 0.5);
+}
+
+.latency-help {
+  display: block;
+  font-size: 10px;
+  color: rgba(150, 130, 180, 0.5);
+  margin-top: 4px;
+}
