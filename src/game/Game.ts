@@ -189,6 +189,9 @@ export class Game {
   async start(): Promise<void> {
     if (!this.chart || this.running) return;
 
+    // Detener cualquier audio anterior
+    this.audio.pause();
+
     this.gameTime = 0;
     this.score.reset();
     this.buildExpectedNotes();
