@@ -1,7 +1,6 @@
 // Tests for HitDetection — Guitar Hero style hit detection
 import { describe, it, expect, beforeEach } from 'vitest';
 import { HitDetector } from '../game/HitDetection.js';
-import type { HitResult } from '../types';
 
 describe('HitDetector', () => {
   let detector: HitDetector;

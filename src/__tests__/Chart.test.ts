@@ -1,7 +1,7 @@
 // Tests for Chart — chart data validation and structure
 import { describe, it, expect } from 'vitest';
 import { testChart } from '../game/Chart.js';
-import type { ChartData, NoteEvent, ChordEvent } from '../types';
+import type { ChartData } from '../types';
 
 describe('Chart data', () => {
   describe('testChart structure', () => {
