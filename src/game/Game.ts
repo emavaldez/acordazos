@@ -210,6 +210,9 @@ export class Game {
     this.running = true;
     this.lastFrameTime = performance.now();
 
+    // Mostrar controles de velocidad in-game
+    this.showSpeedControls();
+
     // Iniciar el loop INMEDIATAMENTE — no esperar al audio
     this.loop();
 
@@ -227,6 +230,52 @@ export class Game {
     this.running = false;
     this.audio.pause();
     cancelAnimationFrame(this.animFrameId);
+    this.hideSpeedControls();
+  }
+
+  private showSpeedControls(): void {
+    this.hideSpeedControls();
+    const div = document.createElement('div');
+    div.id = 'speed-controls';
+    div.innerHTML = `
+      <style>
+        #speed-controls {
+          position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+          display: flex; gap: 8px; align-items: center; z-index: 50;
+          background: rgba(0,0,0,0.6); padding: 6px 12px; border-radius: 8px;
+          font: 12px "Courier New", monospace; color: #fff;
+        }
+        #speed-controls button {
+          background: rgba(68,221,255,0.2); border: 1px solid rgba(68,221,255,0.4);
+          color: #fff; width: 32px; height: 32px; border-radius: 6px;
+          font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        #speed-controls button:hover { background: rgba(68,221,255,0.4); }
+        #speed-controls .spd-label { min-width: 40px; text-align: center; font-weight: bold; }
+      </style>
+      <button id="spd-down">−</button>
+      <span class="spd-label" id="spd-val">${this.speed.toFixed(1)}x</span>
+      <button id="spd-up">+</button>
+    `;
+    document.body.appendChild(div);
+
+    const update = () => {
+      const el = document.getElementById('spd-val');
+      if (el) el.textContent = `${this.speed.toFixed(1)}x`;
+    };
+
+    document.getElementById('spd-down')?.addEventListener('click', () => {
+      this.setSpeed(Math.max(0.25, this.speed - 0.25));
+      update();
+    });
+    document.getElementById('spd-up')?.addEventListener('click', () => {
+      this.setSpeed(Math.min(3, this.speed + 0.25));
+      update();
+    });
+  }
+
+  private hideSpeedControls(): void {
+    document.getElementById('speed-controls')?.remove();
   }
 
   private loop = (): void => {
@@ -249,6 +298,7 @@ export class Game {
     if (this.gameTime >= this.chart.duration + 2) {
       this.running = false;
       this.audio.pause();
+      this.hideSpeedControls();
       this.showResults();
       return;
     }
