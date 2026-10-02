@@ -60,12 +60,30 @@
 
 ---
 
+## Sprint 5 — Rediseño "Neón de bailanta" (oct 2026)
+
+| US | Descripción | Estado |
+|---|---|---|
+| **US-50** | Píldoras con largo real, nombre de nota y tecla negra diferenciada | ✅ |
+| **US-51** | Teclado ajustado al rango del tema + mini-mapa de las 61 teclas | ✅ |
+| **US-52** | Notas largas que se sostienen (puntaje por sostener) | ✅ |
+| **US-53** | Modo práctica: el tiempo espera a que toques | ✅ |
+| **US-54** | Audio sincronizado con tempo/pausa (scheduler con lookahead) | ✅ |
+| **US-55** | Dificultad musical (grilla de negras/corcheas, acordes simplificados) | ✅ |
+| **US-56** | Cuenta de entrada, pausa (Esc), reinicio (R), tempo en juego ([ ]) | ✅ |
+| **US-57** | Resultados con récord local y sugerencia de latencia | ✅ |
+| **US-58** | Menú nuevo: buscador, vista previa, ajustes persistidos | ✅ |
+| **US-59** | Índice de temas con metadatos (no baja 112 charts al arrancar) | ✅ |
+| **US-43** | Loop de un segmento | Pendiente |
+
+---
+
 ## Stack técnico
 
 | Componente | Tecnología |
 |---|---|
 | Runtime | Node.js 20+ |
-| Frontend | Vite + TypeScript + Canvas API |
+| Frontend | Vite + TypeScript + Canvas API (fuentes @fontsource) |
 | MIDI | WebMIDI API (Chrome/Edge) |
 | Audio descarga | yt-dlp |
 | Separación stems | Demucs (PyTorch) |

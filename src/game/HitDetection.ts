@@ -14,6 +14,16 @@ export class HitDetector {
     this.goodWindow = goodWindow;
   }
 
+  setWindows(perfectWindow: number, goodWindow: number): void {
+    this.perfectWindow = perfectWindow;
+    this.goodWindow = goodWindow;
+  }
+
+  /** Ventana "bien" en segundos */
+  get goodWindowSec(): number {
+    return this.goodWindow / 1000;
+  }
+
   /**
    * Dada una nota MIDI tocada en tiempo `actualTime`,
    * busca en el array de eventos activos si hay match.

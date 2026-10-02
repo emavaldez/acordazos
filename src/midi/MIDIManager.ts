@@ -1,99 +1,95 @@
-import type { NoteEvent } from '../types';
-
 /**
- * Maneja la conexión WebMIDI API.
- * Escanea puertos MIDI disponibles y emite eventos Note On/Off.
+ * Conexión WebMIDI. Escucha todas las entradas a la vez y se entera si
+ * enchufás o desenchufás el teclado con el juego abierto.
  */
+export interface MIDIStatus {
+  /** El navegador soporta WebMIDI */
+  supported: boolean;
+  /** El usuario dio permiso */
+  allowed: boolean;
+  /** Nombres de los dispositivos de entrada conectados */
+  devices: string[];
+}
+
+type NoteOnHandler = (note: number, velocity: number) => void;
+type NoteOffHandler = (note: number) => void;
+
 export class MIDIManager {
-  private midiAccess: MIDIAccess | null = null;
-  private inputDevice: MIDIInput | null = null;
-  private onNoteOn: ((note: number, velocity: number) => void) | null = null;
-  private onNoteOff: ((note: number) => void) | null = null;
+  private access: MIDIAccess | null = null;
+  private onNoteOn: NoteOnHandler | null = null;
+  private onNoteOff: NoteOffHandler | null = null;
+  private statusListeners: ((s: MIDIStatus) => void)[] = [];
+  private status: MIDIStatus = { supported: typeof navigator !== 'undefined' && !!navigator.requestMIDIAccess, allowed: false, devices: [] };
 
-  async init(): Promise<boolean> {
-    if (!navigator.requestMIDIAccess) {
-      console.warn('WebMIDI API no disponible en este navegador');
-      return false;
-    }
-
+  async init(): Promise<MIDIStatus> {
+    if (!this.status.supported) return this.status;
     try {
-      // Timeout: si WebMIDI no responde en 5s, seguir sin MIDI
-      this.midiAccess = await Promise.race([
-        navigator.requestMIDIAccess(),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('MIDI timeout')), 5000))
+      this.access = await Promise.race([
+        navigator.requestMIDIAccess({ sysex: false }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('MIDI timeout')), 6000)),
       ]);
-      this.updateDeviceList();
-      this.midiAccess.onstatechange = () => this.updateDeviceList();
-      return this.inputDevice !== null;
+      this.status.allowed = true;
+      this.access.onstatechange = () => this.attachAll();
+      this.attachAll();
     } catch (err) {
-      console.error('Error al acceder a MIDI:', err);
-      return false;
+      console.warn('No se pudo acceder a MIDI:', err);
+      this.status.allowed = false;
+      this.emitStatus();
     }
+    return this.status;
   }
 
-  private updateDeviceList(): void {
-    const inputs = this.midiAccess!.inputs;
-    const devices: string[] = [];
-
-    // Preferir Yamaha o primer dispositivo encontrado
-    for (const input of inputs.values()) {
-      devices.push(input.name || 'Unknown');
-      if (
-        !this.inputDevice &&
-        (input.name?.toLowerCase().includes('yamaha') ||
-          input.name?.toLowerCase().includes('keyboard') ||
-          input.name?.toLowerCase().includes('midi'))
-      ) {
-        this.connectDevice(input);
-      }
+  private attachAll(): void {
+    if (!this.access) return;
+    const names: string[] = [];
+    for (const input of this.access.inputs.values()) {
+      if (input.state !== 'connected') continue;
+      input.onmidimessage = (e) => this.handle(e);
+      names.push(input.name || 'Teclado MIDI');
     }
-
-    // Si no se encontró uno preferido, tomar el primero
-    if (!this.inputDevice && inputs.size > 0) {
-      this.connectDevice(inputs.values().next().value as MIDIInput);
-    }
-
-    console.log(`Dispositivos MIDI disponibles: ${devices.join(', ') || 'ninguno'}`);
+    this.status.devices = names;
+    this.emitStatus();
   }
 
-  private connectDevice(input: MIDIInput): void {
-    this.inputDevice = input;
-    input.onmidimessage = (event) => this.handleMIDIMessage(event);
-    console.log(`✅ Conectado a ${input.name}`);
-  }
-
-  private handleMIDIMessage(event: MIDIMessageEvent): void {
-    if (!event.data) return;
+  private handle(event: MIDIMessageEvent): void {
+    if (!event.data || event.data.length < 3) return;
     const [status, note, velocity] = event.data;
-
-    // Status byte: 0x90 = Note On, 0x80 = Note Off
-    const noteOn = status & 0xf0;
-
-    if (noteOn === 0x90 && velocity > 0) {
-      this.onNoteOn?.(note, velocity);
-    } else if (noteOn === 0x80 || (noteOn === 0x90 && velocity === 0)) {
-      this.onNoteOff?.(note);
-    }
+    const type = status & 0xf0;
+    if (type === 0x90 && velocity > 0) this.onNoteOn?.(note, velocity);
+    else if (type === 0x80 || (type === 0x90 && velocity === 0)) this.onNoteOff?.(note);
   }
 
-  /** Cargar notas desde un array de NoteEvent para alimentar el detector */
-  getNoteEvents(): NoteEvent[] {
-    return [];
+  /** Inyecta una nota como si viniera del teclado (pruebas / herramientas de dev). */
+  emitNoteOn(note: number, velocity = 100): void {
+    this.onNoteOn?.(note, velocity);
   }
 
-  onNote(callback: (note: number, velocity: number) => void): void {
-    this.onNoteOn = callback;
+  emitNoteOff(note: number): void {
+    this.onNoteOff?.(note);
   }
 
-  onNoteRelease(callback: (note: number) => void): void {
-    this.onNoteOff = callback;
+  onNote(cb: NoteOnHandler): void {
+    this.onNoteOn = cb;
+  }
+
+  onNoteRelease(cb: NoteOffHandler): void {
+    this.onNoteOff = cb;
+  }
+
+  onStatus(cb: (s: MIDIStatus) => void): void {
+    this.statusListeners.push(cb);
+  }
+
+  getStatus(): MIDIStatus {
+    return { ...this.status, devices: [...this.status.devices] };
   }
 
   getDeviceName(): string | null {
-    return this.inputDevice?.name || null;
+    return this.status.devices[0] ?? null;
   }
 
-  getDeviceCount(): number {
-    return this.midiAccess ? this.midiAccess.inputs.size : 0;
+  private emitStatus(): void {
+    const s = this.getStatus();
+    for (const l of this.statusListeners) l(s);
   }
 }

@@ -1,43 +1,65 @@
+import '@fontsource/bungee';
+import '@fontsource/bungee-inline';
+import '@fontsource-variable/archivo/wdth.css';
 import './style.css';
 import { Game } from './game/Game';
 
 async function main() {
-  const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-  if (!canvas) {
-    document.body.innerHTML = '<h1>Error: No se encontró el canvas</h1>';
+  const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
+  const ui = document.getElementById('ui');
+  if (!canvas || !ui) {
+    document.body.textContent = 'Falta el canvas del juego en index.html.';
     return;
   }
 
-  const game = new Game(canvas);
+  // Las tipografías se dibujan en el canvas: esperamos a que estén listas
+  try {
+    await Promise.race([
+      Promise.all([
+        document.fonts.load('20px Bungee'),
+        document.fonts.load('700 14px "Archivo Variable"'),
+        document.fonts.load('600 14px "Archivo Variable"'),
+      ]),
+      new Promise(r => setTimeout(r, 2500)),
+    ]);
+  } catch {
+    /* seguimos con las de sistema */
+  }
 
-  // Log visible en pantalla para debug
-  const debugLog = document.createElement('div');
-  debugLog.id = 'debug-log';
-  debugLog.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);color:#0f0;font:11px monospace;padding:4px 8px;z-index:9999;max-height:120px;overflow:auto;pointer-events:none;';
-  document.body.appendChild(debugLog);
+  if (new URLSearchParams(location.search).has('debug')) mountDebugLog();
 
-  const origLog = console.log;
-  const origErr = console.error;
-  const origWarn = console.warn;
-  const addLog = (msg: string) => {
-    debugLog.innerHTML += msg + '<br>';
-    debugLog.scrollTop = debugLog.scrollHeight;
-  };
-  console.log = (...a: any[]) => { origLog(...a); addLog(a.map(x => typeof x === 'object' ? JSON.stringify(x).substring(0, 200) : String(x)).join(' ')); };
-  console.error = (...a: any[]) => { origErr(...a); addLog('❌ ' + a.map(x => String(x)).join(' ')); };
-  console.warn = (...a: any[]) => { origWarn(...a); addLog('⚠️ ' + a.map(x => String(x)).join(' ')); };
-
-  console.log('Iniciando Acordazos...');
-
-  // Inicializar MIDI, audio y cargar canciones
+  const game = new Game(canvas, ui);
+  if (import.meta.env.DEV) {
+    (window as unknown as { __acordazos: unknown }).__acordazos = {
+      game,
+      noteOn: (n: number, v = 100) => game.midiManager.emitNoteOn(n, v),
+      noteOff: (n: number) => game.midiManager.emitNoteOff(n),
+    };
+  }
   await game.init();
-  console.log('Init completo, mostrando menú');
+}
 
-  // Mostrar menú
-  game.showMenu();
+/** Log en pantalla para diagnosticar en equipos sin consola a mano (?debug). */
+function mountDebugLog() {
+  const box = document.createElement('div');
+  box.className = 'debug-log';
+  document.body.appendChild(box);
+  const add = (prefix: string, args: unknown[]) => {
+    const line = document.createElement('div');
+    line.textContent = prefix + args.map(a => (typeof a === 'object' ? JSON.stringify(a)?.slice(0, 200) : String(a))).join(' ');
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  };
+  for (const [k, prefix] of [['log', ''], ['warn', '⚠ '], ['error', '✕ ']] as const) {
+    const orig = console[k].bind(console);
+    console[k] = (...a: unknown[]) => { orig(...a); add(prefix, a); };
+  }
 }
 
 main().catch(e => {
   console.error('Error fatal:', e);
-  document.body.innerHTML = '<h1 style="color:red">Error: ' + e.message + '</h1><pre>' + e.stack + '</pre>';
+  const pre = document.createElement('pre');
+  pre.className = 'fatal';
+  pre.textContent = `No pudo arrancar el juego.\n\n${e?.message ?? e}`;
+  document.body.appendChild(pre);
 });

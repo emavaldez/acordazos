@@ -1,3 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <text y="80" font-size="80">🎸</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#140827"/>
+  <rect x="14" y="8" width="12" height="30" rx="6" fill="#2ee6ff"/>
+  <rect x="34" y="16" width="12" height="22" rx="6" fill="#ff3fa0"/>
+  <rect x="6" y="44" width="52" height="3" rx="1.5" fill="#ffc23a"/>
+  <rect x="8" y="50" width="11" height="10" rx="2" fill="#fbf6ff"/>
+  <rect x="21" y="50" width="11" height="10" rx="2" fill="#fbf6ff"/>
+  <rect x="34" y="50" width="11" height="10" rx="2" fill="#fbf6ff"/>
+  <rect x="47" y="50" width="9" height="10" rx="2" fill="#fbf6ff"/>
 </svg>

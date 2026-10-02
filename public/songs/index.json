@@ -112,5 +112,1015 @@
     "yo_me_llamo_cumbia",
     "yo_tomo",
     "yo_tomo_licor"
-  ]
+  ],
+  "meta": {
+    "2": {
+      "title": "Fuga villera No.2 (2)",
+      "artist": "",
+      "duration": 48,
+      "bpm": 120,
+      "melodyCount": 183,
+      "chordCount": 5,
+      "density": 3.81
+    },
+    "4": {
+      "title": "Fuga villera No.2 (4)",
+      "artist": "",
+      "duration": 49,
+      "bpm": 120,
+      "melodyCount": 202,
+      "chordCount": 4,
+      "density": 4.12
+    },
+    "6": {
+      "title": "Fuga villera No.2 (6)",
+      "artist": "",
+      "duration": 45.88,
+      "bpm": 120,
+      "melodyCount": 190,
+      "chordCount": 3,
+      "density": 4.14
+    },
+    "8": {
+      "title": "Fuga villera No.2 (8)",
+      "artist": "",
+      "duration": 16,
+      "bpm": 120,
+      "melodyCount": 53,
+      "chordCount": 1,
+      "density": 3.31
+    },
+    "_": {
+      "title": "Pega la vuelta",
+      "artist": "",
+      "duration": 28.88,
+      "bpm": 120,
+      "melodyCount": 142,
+      "chordCount": 20,
+      "density": 4.92
+    },
+    "___": {
+      "title": "Choque de cometas",
+      "artist": "",
+      "duration": 36.75,
+      "bpm": 120,
+      "melodyCount": 223,
+      "chordCount": 17,
+      "density": 6.07
+    },
+    "_____": {
+      "title": "Aguita",
+      "artist": "",
+      "duration": 57,
+      "bpm": 120,
+      "melodyCount": 226,
+      "chordCount": 33,
+      "density": 3.96
+    },
+    "adicto_a_ti": {
+      "title": "Adicto a ti",
+      "artist": "Walter Olmios",
+      "duration": 76.75,
+      "bpm": 120,
+      "melodyCount": 272,
+      "chordCount": 37,
+      "density": 3.54
+    },
+    "ahora_tu": {
+      "title": "Ahora tu",
+      "artist": "La Nueva Luna",
+      "duration": 37.13,
+      "bpm": 120,
+      "melodyCount": 211,
+      "chordCount": 21,
+      "density": 5.68
+    },
+    "amame_suavecito": {
+      "title": "Amame suavecito",
+      "artist": "Gilda",
+      "duration": 38.5,
+      "bpm": 120,
+      "melodyCount": 233,
+      "chordCount": 38,
+      "density": 6.05
+    },
+    "amarrame": {
+      "title": "Amarrame",
+      "artist": "Mon Laferte",
+      "duration": 48.67,
+      "bpm": 120,
+      "melodyCount": 231,
+      "chordCount": 17,
+      "density": 4.75
+    },
+    "amor_adolescente": {
+      "title": "Amor adolescente",
+      "artist": "Grupo Red",
+      "duration": 46.04,
+      "bpm": 120,
+      "melodyCount": 183,
+      "chordCount": 24,
+      "density": 3.97
+    },
+    "amor_clasificado": {
+      "title": "Amor clasificado",
+      "artist": "Rodrigo",
+      "duration": 70.75,
+      "bpm": 120,
+      "melodyCount": 165,
+      "chordCount": 26,
+      "density": 2.33
+    },
+    "amores_como_el_nuestro": {
+      "title": "Amores como el nuestro",
+      "artist": "Arr. Los Charros",
+      "duration": 39.88,
+      "bpm": 120,
+      "melodyCount": 191,
+      "chordCount": 25,
+      "density": 4.79
+    },
+    "andrea": {
+      "title": "Andrea",
+      "artist": "Pibes Chorros",
+      "duration": 27.5,
+      "bpm": 120,
+      "melodyCount": 136,
+      "chordCount": 12,
+      "density": 4.95
+    },
+    "bombon_asesino": {
+      "title": "Bombon Asesino",
+      "artist": "Los Palmeras",
+      "duration": 27.25,
+      "bpm": 120,
+      "melodyCount": 143,
+      "chordCount": 7,
+      "density": 5.25
+    },
+    "carinito": {
+      "title": "Carinito",
+      "artist": "Los hijos del sol (Peru)",
+      "duration": 46.13,
+      "bpm": 120,
+      "melodyCount": 201,
+      "chordCount": 18,
+      "density": 4.36
+    },
+    "chiquilina__una_rafaga_de_amor_": {
+      "title": "Chiquilina (Una rafaga de amor)",
+      "artist": "Rafaga",
+      "duration": 42.38,
+      "bpm": 120,
+      "melodyCount": 215,
+      "chordCount": 29,
+      "density": 5.07
+    },
+    "como_le_digo": {
+      "title": "Como le digo",
+      "artist": "Rodrigo",
+      "duration": 56.5,
+      "bpm": 120,
+      "melodyCount": 158,
+      "chordCount": 31,
+      "density": 2.8
+    },
+    "como_me_voy_a_olvidar": {
+      "title": "Como me voy a olvidar",
+      "artist": "Los Autenticos Decadentes",
+      "duration": 75.88,
+      "bpm": 120,
+      "melodyCount": 288,
+      "chordCount": 22,
+      "density": 3.8
+    },
+    "corazon_mentiroso": {
+      "title": "Corazon mentiroso",
+      "artist": "Karina",
+      "duration": 40.63,
+      "bpm": 120,
+      "melodyCount": 132,
+      "chordCount": 20,
+      "density": 3.25
+    },
+    "cumbia_villera": {
+      "title": "Cumbia Villera",
+      "artist": "Yerba Brava",
+      "duration": 37.5,
+      "bpm": 120,
+      "melodyCount": 166,
+      "chordCount": 11,
+      "density": 4.43
+    },
+    "decile_que_lo_quiero": {
+      "title": "Decile que lo quiero",
+      "artist": "Los Sultanes",
+      "duration": 41.75,
+      "bpm": 120,
+      "melodyCount": 159,
+      "chordCount": 19,
+      "density": 3.81
+    },
+    "despues_de_ti": {
+      "title": "Despues de Ti",
+      "artist": "Leo Mattioli",
+      "duration": 44.25,
+      "bpm": 120,
+      "melodyCount": 212,
+      "chordCount": 21,
+      "density": 4.79
+    },
+    "dm": {
+      "title": "Los duenos del pabellon",
+      "artist": "",
+      "duration": 59.75,
+      "bpm": 120,
+      "melodyCount": 243,
+      "chordCount": 39,
+      "density": 4.07
+    },
+    "duraznito": {
+      "title": "Duraznito",
+      "artist": "Pibes Chorros",
+      "duration": 48.25,
+      "bpm": 120,
+      "melodyCount": 215,
+      "chordCount": 29,
+      "density": 4.46
+    },
+    "el_borrachito": {
+      "title": "El borrachito",
+      "artist": "Organizacion X",
+      "duration": 34.5,
+      "bpm": 120,
+      "melodyCount": 284,
+      "chordCount": 28,
+      "density": 8.23
+    },
+    "el_colesterol": {
+      "title": "El colesterol",
+      "artist": "Ver. Lia Crucet",
+      "duration": 66.75,
+      "bpm": 120,
+      "melodyCount": 248,
+      "chordCount": 30,
+      "density": 3.72
+    },
+    "el_gran_senor": {
+      "title": "El gran Senor",
+      "artist": "Los Autenticos Decadentes",
+      "duration": 65,
+      "bpm": 120,
+      "melodyCount": 238,
+      "chordCount": 24,
+      "density": 3.66
+    },
+    "el_petiso": {
+      "title": "El petiso",
+      "artist": "Ricky Maravilla",
+      "duration": 51,
+      "bpm": 120,
+      "melodyCount": 191,
+      "chordCount": 16,
+      "density": 3.75
+    },
+    "el_polvito_del_amor": {
+      "title": "El Polvito del Amor",
+      "artist": "Amar Azul",
+      "duration": 33.31,
+      "bpm": 120,
+      "melodyCount": 158,
+      "chordCount": 22,
+      "density": 4.74
+    },
+    "el_soy_yo": {
+      "title": "El soy yo",
+      "artist": "Los mensajeros del amor",
+      "duration": 33.13,
+      "bpm": 120,
+      "melodyCount": 158,
+      "chordCount": 23,
+      "density": 4.77
+    },
+    "el_tano_pastita": {
+      "title": "El Tano pastita",
+      "artist": "Pibes Chorros",
+      "duration": 36,
+      "bpm": 120,
+      "melodyCount": 181,
+      "chordCount": 22,
+      "density": 5.03
+    },
+    "esa_malvada": {
+      "title": "Esa malvada",
+      "artist": "Volcan",
+      "duration": 28.38,
+      "bpm": 120,
+      "melodyCount": 182,
+      "chordCount": 21,
+      "density": 6.41
+    },
+    "fm": {
+      "title": "Mentirosa",
+      "artist": "",
+      "duration": 55.75,
+      "bpm": 120,
+      "melodyCount": 246,
+      "chordCount": 22,
+      "density": 4.41
+    },
+    "fuego_y_pasion": {
+      "title": "Fuego y pasion",
+      "artist": "Rodrigo",
+      "duration": 60.5,
+      "bpm": 120,
+      "melodyCount": 231,
+      "chordCount": 27,
+      "density": 3.82
+    },
+    "fuiste": {
+      "title": "Fuiste",
+      "artist": "Gilda",
+      "duration": 39,
+      "bpm": 120,
+      "melodyCount": 239,
+      "chordCount": 26,
+      "density": 6.13
+    },
+    "himno_del_cucumelo": {
+      "title": "Himno del Cucumelo",
+      "artist": "Las Manos de Filippi",
+      "duration": 41.25,
+      "bpm": 120,
+      "melodyCount": 196,
+      "chordCount": 22,
+      "density": 4.75
+    },
+    "hoy_volvi_a_verte": {
+      "title": "Hoy volvi a verte",
+      "artist": "El Retutu",
+      "duration": 25,
+      "bpm": 120,
+      "melodyCount": 129,
+      "chordCount": 20,
+      "density": 5.16
+    },
+    "iluminara": {
+      "title": "Iluminara",
+      "artist": "La Nueva Luna",
+      "duration": 52.25,
+      "bpm": 120,
+      "melodyCount": 289,
+      "chordCount": 20,
+      "density": 5.53
+    },
+    "la_colorada": {
+      "title": "La colorada",
+      "artist": "Pibes Chorros",
+      "duration": 40,
+      "bpm": 120,
+      "melodyCount": 192,
+      "chordCount": 28,
+      "density": 4.8
+    },
+    "la_cotorra": {
+      "title": "La Cotorra",
+      "artist": "Agua Sucia",
+      "duration": 32.88,
+      "bpm": 120,
+      "melodyCount": 184,
+      "chordCount": 21,
+      "density": 5.6
+    },
+    "la_cumbia_del_mole": {
+      "title": "La cumbia del Mole",
+      "artist": "Lila Downs",
+      "duration": 29.13,
+      "bpm": 120,
+      "melodyCount": 124,
+      "chordCount": 19,
+      "density": 4.26
+    },
+    "la_cumbita": {
+      "title": "La cumbita",
+      "artist": "Tambo Tambo",
+      "duration": 34.5,
+      "bpm": 120,
+      "melodyCount": 175,
+      "chordCount": 10,
+      "density": 5.07
+    },
+    "la_danza_de_los_mirlos": {
+      "title": "La danza de los mirlos",
+      "artist": "Los Mirlos (Peru)",
+      "duration": 40.63,
+      "bpm": 120,
+      "melodyCount": 263,
+      "chordCount": 22,
+      "density": 6.47
+    },
+    "la_danza_del_tablon": {
+      "title": "La danza del tablon",
+      "artist": "Guachin",
+      "duration": 46,
+      "bpm": 120,
+      "melodyCount": 283,
+      "chordCount": 26,
+      "density": 6.15
+    },
+    "la_guitarra": {
+      "title": "La Guitarra",
+      "artist": "Los Autenticos Decadentes",
+      "duration": 5.75,
+      "bpm": 120,
+      "melodyCount": 113,
+      "chordCount": 37,
+      "density": 19.65
+    },
+    "la_luna_y_tu": {
+      "title": "La luna y tu",
+      "artist": "Rafaga",
+      "duration": 80.81,
+      "bpm": 120,
+      "melodyCount": 362,
+      "chordCount": 23,
+      "density": 4.48
+    },
+    "la_mano_de_dios": {
+      "title": "La mano de Dios",
+      "artist": "Rodrigo",
+      "duration": 85.75,
+      "bpm": 120,
+      "melodyCount": 285,
+      "chordCount": 33,
+      "density": 3.32
+    },
+    "la_marca_de_la_gorra": {
+      "title": "La marca de la gorra",
+      "artist": "Mala Fama",
+      "duration": 38.88,
+      "bpm": 120,
+      "melodyCount": 195,
+      "chordCount": 32,
+      "density": 5.02
+    },
+    "la_nueva_luna": {
+      "title": "La Nueva Luna",
+      "artist": "Ahora tu",
+      "duration": 37.13,
+      "bpm": 120,
+      "melodyCount": 211,
+      "chordCount": 21,
+      "density": 5.68
+    },
+    "la_pagaras": {
+      "title": "La pagaras",
+      "artist": "La Nueva Luna",
+      "duration": 51.38,
+      "bpm": 120,
+      "melodyCount": 259,
+      "chordCount": 26,
+      "density": 5.04
+    },
+    "la_pollera_amarilla": {
+      "title": "La pollera amarilla",
+      "artist": "Gladys la bomba tucumana",
+      "duration": 28.88,
+      "bpm": 120,
+      "melodyCount": 131,
+      "chordCount": 14,
+      "density": 4.54
+    },
+    "la_pollera_colorada": {
+      "title": "La pollera colorada",
+      "artist": "Juan M. Castro y W. Choperena",
+      "duration": 31.63,
+      "bpm": 120,
+      "melodyCount": 149,
+      "chordCount": 18,
+      "density": 4.71
+    },
+    "la_puerta": {
+      "title": "La puerta",
+      "artist": "Gilda",
+      "duration": 35,
+      "bpm": 120,
+      "melodyCount": 173,
+      "chordCount": 18,
+      "density": 4.94
+    },
+    "la_tengo_que_olvidar": {
+      "title": "La tengo que olvidar",
+      "artist": "Jambao",
+      "duration": 35.75,
+      "bpm": 120,
+      "melodyCount": 173,
+      "chordCount": 14,
+      "density": 4.84
+    },
+    "la_vecina": {
+      "title": "La vecina",
+      "artist": "Amar Azul",
+      "duration": 34.5,
+      "bpm": 120,
+      "melodyCount": 286,
+      "chordCount": 13,
+      "density": 8.29
+    },
+    "la_ventanita": {
+      "title": "La ventanita",
+      "artist": "Sombras",
+      "duration": 49.88,
+      "bpm": 120,
+      "melodyCount": 236,
+      "chordCount": 29,
+      "density": 4.73
+    },
+    "las_pibas_quieren_cha_cha": {
+      "title": "Las pibas quieren cha cha",
+      "artist": "El Empuje",
+      "duration": 40.25,
+      "bpm": 120,
+      "melodyCount": 233,
+      "chordCount": 29,
+      "density": 5.79
+    },
+    "llora_me_llama": {
+      "title": "Llora me llama",
+      "artist": "Arr. Los Palmeras",
+      "duration": 47.13,
+      "bpm": 120,
+      "melodyCount": 268,
+      "chordCount": 33,
+      "density": 5.69
+    },
+    "lo_mejor_del_amor": {
+      "title": "Lo mejor del amor",
+      "artist": "Rodrigo Bueno / ArielTessel",
+      "duration": 77.88,
+      "bpm": 120,
+      "melodyCount": 247,
+      "chordCount": 34,
+      "density": 3.17
+    },
+    "lucerito__fantasia_nocturna_": {
+      "title": "Lucerito (Fantasia Nocturna)",
+      "artist": "Arr. Los Wawanco",
+      "duration": 31.5,
+      "bpm": 120,
+      "melodyCount": 194,
+      "chordCount": 14,
+      "density": 6.16
+    },
+    "movidito_movidito": {
+      "title": "Movidito movidito",
+      "artist": "Sebastian",
+      "duration": 56.5,
+      "bpm": 120,
+      "melodyCount": 317,
+      "chordCount": 30,
+      "density": 5.61
+    },
+    "nadie_es_perfecto": {
+      "title": "Nadie es perfecto",
+      "artist": "Los Caligaris",
+      "duration": 59.75,
+      "bpm": 120,
+      "melodyCount": 208,
+      "chordCount": 28,
+      "density": 3.48
+    },
+    "nadie_sabe": {
+      "title": "Nadie sabe",
+      "artist": "Antonio Rios",
+      "duration": 65.63,
+      "bpm": 120,
+      "melodyCount": 334,
+      "chordCount": 37,
+      "density": 5.09
+    },
+    "navidad_negra": {
+      "title": "Navidad Negra",
+      "artist": "Jose Barros",
+      "duration": 26.25,
+      "bpm": 120,
+      "melodyCount": 118,
+      "chordCount": 21,
+      "density": 4.5
+    },
+    "negra__ron_y_velas": {
+      "title": "Negra, ron y velas",
+      "artist": "Morgan Blanco",
+      "duration": 49.88,
+      "bpm": 120,
+      "melodyCount": 324,
+      "chordCount": 12,
+      "density": 6.5
+    },
+    "never-gonna": {
+      "title": "Yerba Brava - La Cumbia de los Trapos",
+      "artist": "Con la Cumbia en la sangre",
+      "duration": 251,
+      "bpm": 86.1,
+      "melodyCount": 224,
+      "chordCount": 647,
+      "density": 0.89
+    },
+    "no_es_mi_despedida": {
+      "title": "No es mi despedida",
+      "artist": "Gilda",
+      "duration": 41.25,
+      "bpm": 120,
+      "melodyCount": 203,
+      "chordCount": 27,
+      "density": 4.92
+    },
+    "no_me_abandones": {
+      "title": "No me abandones",
+      "artist": "Los Avila",
+      "duration": 35.5,
+      "bpm": 120,
+      "melodyCount": 188,
+      "chordCount": 13,
+      "density": 5.3
+    },
+    "no_me_arrepiento": {
+      "title": "No me arrepiento",
+      "artist": "Gilda",
+      "duration": 29.25,
+      "bpm": 120,
+      "melodyCount": 157,
+      "chordCount": 22,
+      "density": 5.37
+    },
+    "no_me_vuelvo_a_enamorar": {
+      "title": "No me vuelvo a enamorar",
+      "artist": "Grupo Enlace",
+      "duration": 35.25,
+      "bpm": 120,
+      "melodyCount": 143,
+      "chordCount": 10,
+      "density": 4.06
+    },
+    "no_podre_olvidarte": {
+      "title": "No podre olvidarte",
+      "artist": "Grupo Red",
+      "duration": 42,
+      "bpm": 120,
+      "melodyCount": 276,
+      "chordCount": 30,
+      "density": 6.57
+    },
+    "noches_vacias": {
+      "title": "Noches vacias",
+      "artist": "Gilda",
+      "duration": 37.38,
+      "bpm": 120,
+      "melodyCount": 209,
+      "chordCount": 13,
+      "density": 5.59
+    },
+    "nunca_me_faltes": {
+      "title": "Nunca me faltes",
+      "artist": "Antonio Rios",
+      "duration": 64.25,
+      "bpm": 120,
+      "melodyCount": 274,
+      "chordCount": 33,
+      "density": 4.26
+    },
+    "ocho_cuarenta": {
+      "title": "Ocho cuarenta",
+      "artist": "Rodrigo",
+      "duration": 69.13,
+      "bpm": 120,
+      "melodyCount": 215,
+      "chordCount": 34,
+      "density": 3.11
+    },
+    "paisaje": {
+      "title": "Paisaje",
+      "artist": "Gilda",
+      "duration": 56.75,
+      "bpm": 120,
+      "melodyCount": 279,
+      "chordCount": 21,
+      "density": 4.92
+    },
+    "pasito_a_pasito": {
+      "title": "Pasito a pasito",
+      "artist": "Gilda",
+      "duration": 27,
+      "bpm": 120,
+      "melodyCount": 217,
+      "chordCount": 12,
+      "density": 8.04
+    },
+    "pibe_cantina": {
+      "title": "Pibe Cantina",
+      "artist": "Yerba Brava",
+      "duration": 47.5,
+      "bpm": 120,
+      "melodyCount": 232,
+      "chordCount": 32,
+      "density": 4.88
+    },
+    "pideme_la_luna": {
+      "title": "Pideme la luna",
+      "artist": "Leo Dan",
+      "duration": 40.5,
+      "bpm": 120,
+      "melodyCount": 275,
+      "chordCount": 16,
+      "density": 6.79
+    },
+    "por_dios_que_no_": {
+      "title": "Por Dios que no!",
+      "artist": "Hugo Almanza Durand  (Peru)",
+      "duration": 64.75,
+      "bpm": 120,
+      "melodyCount": 350,
+      "chordCount": 40,
+      "density": 5.41
+    },
+    "por_lo_que_yo_te_quiero": {
+      "title": "Por lo que yo te quiero",
+      "artist": "Walter Olmos",
+      "duration": 61.13,
+      "bpm": 120,
+      "melodyCount": 190,
+      "chordCount": 30,
+      "density": 3.11
+    },
+    "porque_te_amo": {
+      "title": "Porque te amo",
+      "artist": "La Cumbia",
+      "duration": 56.5,
+      "bpm": 120,
+      "melodyCount": 281,
+      "chordCount": 26,
+      "density": 4.97
+    },
+    "que_calor": {
+      "title": "Que calor",
+      "artist": "Pibes Chorros",
+      "duration": 51.88,
+      "bpm": 120,
+      "melodyCount": 234,
+      "chordCount": 34,
+      "density": 4.51
+    },
+    "que_ironia": {
+      "title": "Que ironia",
+      "artist": "Rodrigo",
+      "duration": 53.25,
+      "bpm": 120,
+      "melodyCount": 159,
+      "chordCount": 27,
+      "density": 2.99
+    },
+    "quien_se_ha_tomado_todo_el_vino": {
+      "title": "Quien se ha tomado todo el vino",
+      "artist": "La Mona Jimenez",
+      "duration": 37.75,
+      "bpm": 120,
+      "melodyCount": 111,
+      "chordCount": 11,
+      "density": 2.94
+    },
+    "quiero_confesarte": {
+      "title": "Quiero confesarte",
+      "artist": "Amar Azul",
+      "duration": 35.38,
+      "bpm": 120,
+      "melodyCount": 310,
+      "chordCount": 22,
+      "density": 8.76
+    },
+    "se_me_ha_perdido_un_corazon": {
+      "title": "Se me ha perdido un corazon",
+      "artist": "Gilda",
+      "duration": 60.88,
+      "bpm": 120,
+      "melodyCount": 235,
+      "chordCount": 37,
+      "density": 3.86
+    },
+    "se_parece_mas_a_ti": {
+      "title": "Se parece mas a ti",
+      "artist": "Arr. Jambao",
+      "duration": 50.38,
+      "bpm": 120,
+      "melodyCount": 172,
+      "chordCount": 22,
+      "density": 3.41
+    },
+    "se_te_ve_la_tanga": {
+      "title": "Se te ve la tanga",
+      "artist": "Damas Gratis",
+      "duration": 66.25,
+      "bpm": 120,
+      "melodyCount": 315,
+      "chordCount": 22,
+      "density": 4.75
+    },
+    "si_vos_queres": {
+      "title": "Si vos queres",
+      "artist": "Sudor Marika",
+      "duration": 38.63,
+      "bpm": 120,
+      "melodyCount": 186,
+      "chordCount": 23,
+      "density": 4.82
+    },
+    "sigo_el_ritmo": {
+      "title": "Sigo el ritmo",
+      "artist": "Gilda",
+      "duration": 32.38,
+      "bpm": 120,
+      "melodyCount": 232,
+      "chordCount": 19,
+      "density": 7.17
+    },
+    "solo_aspirinas": {
+      "title": "Solo aspirinas",
+      "artist": "Damas Gratis",
+      "duration": 57,
+      "bpm": 120,
+      "melodyCount": 216,
+      "chordCount": 26,
+      "density": 3.79
+    },
+    "sonido_amazonico": {
+      "title": "Sonido Amazonico",
+      "artist": "Los Mirlos (Peru)",
+      "duration": 59.63,
+      "bpm": 120,
+      "melodyCount": 227,
+      "chordCount": 21,
+      "density": 3.81
+    },
+    "sopa_de_caracol": {
+      "title": "Sopa de caracol",
+      "artist": "Banda Blanca (Honduras)",
+      "duration": 44.5,
+      "bpm": 120,
+      "melodyCount": 213,
+      "chordCount": 4,
+      "density": 4.79
+    },
+    "sos_boton": {
+      "title": "Sos boton",
+      "artist": "Flor de Piedra",
+      "duration": 78.19,
+      "bpm": 120,
+      "melodyCount": 265,
+      "chordCount": 43,
+      "density": 3.39
+    },
+    "soy_cordobes": {
+      "title": "Soy Cordobes",
+      "artist": "Rodrigo",
+      "duration": 92,
+      "bpm": 120,
+      "melodyCount": 340,
+      "chordCount": 44,
+      "density": 3.7
+    },
+    "te_hare_el_amor": {
+      "title": "Te hare el amor",
+      "artist": "Antonio Rios",
+      "duration": 67.25,
+      "bpm": 120,
+      "melodyCount": 300,
+      "chordCount": 42,
+      "density": 4.46
+    },
+    "te_vas": {
+      "title": "Te vas",
+      "artist": "arr. Americo",
+      "duration": 51.88,
+      "bpm": 120,
+      "melodyCount": 239,
+      "chordCount": 42,
+      "density": 4.61
+    },
+    "todos_los_domingos": {
+      "title": "Todos los Domingos",
+      "artist": "La Sonora Palacios",
+      "duration": 29,
+      "bpm": 120,
+      "melodyCount": 170,
+      "chordCount": 20,
+      "density": 5.86
+    },
+    "tonta": {
+      "title": "Tonta",
+      "artist": "Comanche",
+      "duration": 28.5,
+      "bpm": 120,
+      "melodyCount": 141,
+      "chordCount": 17,
+      "density": 4.95
+    },
+    "tranquila": {
+      "title": "Tranquila",
+      "artist": "Javier Garcia",
+      "duration": 61.63,
+      "bpm": 120,
+      "melodyCount": 256,
+      "chordCount": 23,
+      "density": 4.15
+    },
+    "una_calle_nos_separa": {
+      "title": "Una calle nos separa",
+      "artist": "Leo Dan",
+      "duration": 50.88,
+      "bpm": 120,
+      "melodyCount": 226,
+      "chordCount": 27,
+      "density": 4.44
+    },
+    "vamos_a_bailar": {
+      "title": "Vamos a bailar",
+      "artist": "Yerba Brava",
+      "duration": 46.75,
+      "bpm": 120,
+      "melodyCount": 170,
+      "chordCount": 7,
+      "density": 3.64
+    },
+    "vienes_y_te_vas": {
+      "title": "Vienes y te vas",
+      "artist": "La Base Musical",
+      "duration": 48.25,
+      "bpm": 120,
+      "melodyCount": 153,
+      "chordCount": 24,
+      "density": 3.17
+    },
+    "violeta": {
+      "title": "Violeta",
+      "artist": "Alcides",
+      "duration": 124.25,
+      "bpm": 120,
+      "melodyCount": 189,
+      "chordCount": 21,
+      "density": 1.52
+    },
+    "y_ahora_te_vas": {
+      "title": "Y ahora te vas",
+      "artist": "La Nueva Luna",
+      "duration": 130.5,
+      "bpm": 120,
+      "melodyCount": 168,
+      "chordCount": 42,
+      "density": 1.29
+    },
+    "y_volo__volo": {
+      "title": "Y volo, volo",
+      "artist": "Rodrigo",
+      "duration": 103.46,
+      "bpm": 120,
+      "melodyCount": 317,
+      "chordCount": 30,
+      "density": 3.06
+    },
+    "yo_me_enamore": {
+      "title": "Yo me enamore",
+      "artist": "Amar Azul",
+      "duration": 27.38,
+      "bpm": 120,
+      "melodyCount": 140,
+      "chordCount": 9,
+      "density": 5.11
+    },
+    "yo_me_llamo_cumbia": {
+      "title": "Yo me llamo Cumbia",
+      "artist": "Mario Garena",
+      "duration": 54.38,
+      "bpm": 120,
+      "melodyCount": 249,
+      "chordCount": 35,
+      "density": 4.58
+    },
+    "yo_tomo": {
+      "title": "Yo tomo",
+      "artist": "Bersuit Vergarabat",
+      "duration": 67.88,
+      "bpm": 120,
+      "melodyCount": 356,
+      "chordCount": 33,
+      "density": 5.24
+    },
+    "yo_tomo_licor": {
+      "title": "Yo tomo licor",
+      "artist": "Amar azul",
+      "duration": 58.13,
+      "bpm": 120,
+      "melodyCount": 258,
+      "chordCount": 17,
+      "density": 4.44
+    }
+  }
 }

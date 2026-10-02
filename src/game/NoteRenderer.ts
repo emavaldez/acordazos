@@ -1,739 +1,707 @@
-import type { ChartData, GameMode } from '../types';
+import type { Part, PlayNote } from '../types';
+import { KeyboardLayout, type KeyRect } from './KeyboardLayout';
+import { isBlack, noteName, MIDDLE_C, KEYBOARD_MIN, KEYBOARD_MAX, type NoteNaming } from '../music/notes';
+import { theme } from '../theme';
+
+export type NoteState = 'pending' | 'hit' | 'missed';
+
+/** Nota con su estado durante la partida. */
+export interface LiveNote extends PlayNote {
+  state: NoteState;
+  /** Nota larga apretada en este momento */
+  holding: boolean;
+  /** Si se soltó antes de tiempo, momento (de canción) en que se soltó */
+  releasedAt: number | null;
+}
+
+export interface Frame {
+  songTime: number;
+  tempo: number;
+  beat: number;
+  notes: LiveNote[];
+  /** Teclas apretadas: parte que se acertó o null si no correspondía ninguna */
+  pressed: Map<number, Part | null>;
+  /** Teclas que hay que tocar (o sostener) ahora */
+  guide: Map<number, Part>;
+  /** Segundos esperando en modo práctica (0 si no espera) */
+  waiting: number;
+  countIn: { label: string; phase: number } | null;
+  naming: NoteNaming;
+}
+
+type Rating = 'perfect' | 'good' | 'miss';
+
+interface Spark { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
+
+const pc = (n: number) => ((n % 12) + 12) % 12;
+
+/** Alto del HUD (HTML) arriba de la pista. Tiene que coincidir con --hud-h en style.css. */
+export const LANE_TOP = 72;
 
 /**
- * Renderiza notas cayendo verticalmente sobre un teclado de piano horizontal.
- * Estilo Guitar Hero — escenario oscuro, neones, gemas brillantes, HUD potente.
- *
- * Layout:
- *   [ STAGE / FONDO ANIMADO ]
- *   [ HUD con score, combo, multiplier, barra de canción ]
- *   [ CARRIL CON NOTAS CAYENDO ↓↓↓ ]
- *   [ LÍNEA DE IMPACTO (glowing) ]
- *   [ TECLADO DE PIANO ]
+ * Dibuja el carril: pared LED, guías por tecla, líneas de compás, píldoras,
+ * marquesina de bombitas (línea de impacto) y el teclado.
  */
 export class NoteRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private width: number = 0;
-  private height: number = 0;
+  private W = 0;
+  private H = 0;
+  private dpr = 1;
 
-  // Config
-  private readonly hudHeight: number = 70;
-  private readonly keyboardHeight: number = 100;
-  private noteScrollTime: number = 5;
+  private range: [number, number] = [KEYBOARD_MIN, KEYBOARD_MAX];
+  private layout: KeyboardLayout = new KeyboardLayout(KEYBOARD_MIN, KEYBOARD_MAX, 1000);
+  private fallTime = 2.4;
 
-  // Rango Yamaha E333 (61 teclas: C2=36 a C7=96)
-  private readonly minNote: number = 36;
-  private readonly keyCount: number = 61;
-  private readonly blackKeyIndices = new Set([1, 3, 6, 8, 10]);
+  private ledMask: HTMLCanvasElement = document.createElement('canvas');
+  private ledTint: HTMLCanvasElement = document.createElement('canvas');
 
-  // Colores tipo Guitar Hero — neón oscuro
-
-  // Colores para las "regiones" del carril (como los 5 botones del GH)
-  private readonly laneColors = [
-    { r: 0, g: 200, b: 80 },   // Green GH
-    { r: 255, g: 40, b: 40 },  // Red GH
-    { r: 255, g: 200, b: 0 },  // Yellow GH
-    { r: 40, g: 100, b: 255 }, // Blue GH
-    { r: 255, g: 120, b: 0 },  // Orange GH
-  ];
-
-  private readonly hitLineColor = '#44ddff';
-  private readonly hitZoneGlow = 'rgba(68, 221, 255, 0.15)';
-
-  private readonly perfectColor = '#00ff88';
-  private readonly goodColor = '#ffdd00';
-  private readonly missColor = '#ff2244';
-
-  private readonly whiteKeyActiveColor = '#88ccff';
-  private readonly blackKeyActiveColor = '#3388cc';
-
-  // Animación de fondo
-  private bgTime: number = 0;
-  private particles: { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number }[] = [];
-
-  // Key layout cache
-  private keyLayout: { x: number; w: number; isBlack: boolean }[] = [];
-
-  // Hit particles
-  private hitParticles: { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number }[] = [];
+  private sparks: Spark[] = [];
+  private judgements = new Map<number, { rating: Rating; born: number }>();
+  private beams = new Map<number, { part: Part; born: number; good: boolean }>();
+  private announcement: { text: string; color: string; born: number } | null = null;
+  private lastNow = performance.now() / 1000;
+  private frame = 0;
+  private reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d')!;
+    this.ctx = canvas.getContext('2d', { alpha: false })!;
     this.resize();
-    // Inicializar partículas de fondo
-    for (let i = 0; i < 30; i++) {
-      this.particles.push(this.createBgParticle());
-    }
   }
 
-  private createBgParticle() {
-    return {
-      x: Math.random() * (this.width || 1920),
-      y: Math.random() * (this.height || 1080),
-      vx: (Math.random() - 0.5) * 0.5,
-      vy: (Math.random() - 0.5) * 0.3 - 0.2,
-      life: 0,
-      maxLife: 300 + Math.random() * 200,
-      r: 0.5 + Math.random() * 1.5,
-    };
-  }
-
+  // ─── Configuración ──────────────────────────────────────────────────
   resize(): void {
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
-    this.buildKeyLayout();
+    this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.W = window.innerWidth;
+    this.H = window.innerHeight;
+    this.canvas.width = Math.round(this.W * this.dpr);
+    this.canvas.height = Math.round(this.H * this.dpr);
+    this.canvas.style.width = `${this.W}px`;
+    this.canvas.style.height = `${this.H}px`;
+    this.layout = new KeyboardLayout(this.range[0], this.range[1], this.W);
+    this.buildLedMask();
+    this.frame = 0;
   }
 
-  private get hitLineY(): number {
-    return this.height - this.keyboardHeight - 15;
+  setRange(low: number, high: number): void {
+    this.range = [low, high];
+    this.layout = new KeyboardLayout(low, high, this.W);
   }
 
-  private buildKeyLayout(): void {
-    this.keyLayout = [];
-    const totalW = this.width;
-
-    let whiteCount = 0;
-    for (let i = 0; i < this.keyCount; i++) {
-      if (!this.blackKeyIndices.has((this.minNote + i) % 12)) whiteCount++;
-    }
-
-    const whiteKeyW = totalW / whiteCount;
-    const blackKeyW = whiteKeyW * 0.6;
-    let whiteIndex = 0;
-
-    for (let i = 0; i < this.keyCount; i++) {
-      const note = this.minNote + i;
-      const isBlack = this.blackKeyIndices.has(note % 12);
-
-      if (isBlack) {
-        const prevWhiteX = (whiteIndex - 1) * whiteKeyW;
-        this.keyLayout.push({
-          x: prevWhiteX + whiteKeyW - blackKeyW / 2,
-          w: blackKeyW,
-          isBlack: true,
-        });
-      } else {
-        this.keyLayout.push({
-          x: whiteIndex * whiteKeyW,
-          w: whiteKeyW,
-          isBlack: false,
-        });
-        whiteIndex++;
-      }
-    }
+  /** Segundos reales que tarda una nota en caer hasta la línea. */
+  setFallTime(seconds: number): void {
+    this.fallTime = seconds;
   }
 
-  setScrollTime(seconds: number): void {
-    this.noteScrollTime = seconds;
+  get isFullKeyboard(): boolean {
+    return this.range[0] === KEYBOARD_MIN && this.range[1] === KEYBOARD_MAX;
   }
 
-  /** Renderiza un frame */
-  render(
-    chart: ChartData,
-    gameTime: number,
-    scoreState: { score: number; combo: number; maxCombo: number; perfects: number; goods: number; misses: number },
-    mode: GameMode,
-    activeNotes: Set<number>,
-    hitResults: { time: number; rating: string }[],
-  ): void {
-    this.bgTime += 0.016; // ~60fps step
-
-    // Fondo con gradiente animado
-    this.renderBackground();
-
-    // Carril de notas (detrás del HUD)
-    this.renderLane(chart, gameTime, mode);
-
-    // Hit feedback (flotando sobre el carril)
-    this.renderHitFeedback(hitResults, gameTime);
-
-    // HUD al frente
-    this.renderHUD(chart, scoreState, mode, gameTime);
-
-    // Teclado
-    this.renderKeyboard(activeNotes);
-
-    // Partículas de hit
-    this.renderHitParticles();
-
-    // Overlay de bordes tipo GH
-    this.renderVignette();
+  private get kbH(): number {
+    return Math.max(96, Math.min(this.layout.whiteW * 4, 200, this.H * 0.24));
   }
 
-  // ─── FONDO DE ESCENARIO ──────────────────────────────────────────────
-  private renderBackground(): void {
-    const ctx = this.ctx;
-    const grad = ctx.createRadialGradient(
-      this.width / 2, this.height * 0.3, 0,
-      this.width / 2, this.height * 0.3, this.height * 0.8,
-    );
-    const pulse = Math.sin(this.bgTime * 0.5) * 0.05 + 0.15;
-    grad.addColorStop(0, `rgba(30, 0, 50, ${pulse})`);
-    grad.addColorStop(0.5, '#0a0015');
-    grad.addColorStop(1, '#050210');
-
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, this.width, this.height);
-
-    // Líneas de luz de escenario (tipo GH stage lights)
-    ctx.strokeStyle = 'rgba(100, 0, 200, 0.04)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 12; i++) {
-      const x = (this.width / 12) * i + Math.sin(this.bgTime + i) * 20;
-      ctx.beginPath();
-      ctx.moveTo(x, -10);
-      ctx.lineTo(x + Math.sin(this.bgTime + i * 2) * 30, this.height * 0.7);
-      ctx.stroke();
-    }
-
-    // Partículas
-    for (const p of this.particles) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life++;
-      if (p.life > p.maxLife || p.x < 0 || p.x > this.width || p.y < 0 || p.y > this.height) {
-        Object.assign(p, this.createBgParticle());
-        p.x = Math.random() * this.width;
-        p.y = this.height + 10;
-      }
-      const alpha = Math.min(1, p.life / 50) * (1 - p.life / p.maxLife) * 0.6;
-      ctx.fillStyle = `rgba(180, 100, 255, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  private get hitY(): number {
+    return this.H - this.kbH - 8;
   }
 
-  private renderVignette(): void {
-    const ctx = this.ctx;
-    const grad = ctx.createRadialGradient(
-      this.width / 2, this.height / 2, this.height * 0.3,
-      this.width / 2, this.height / 2, this.height * 0.85,
-    );
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.5)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, this.width, this.height);
-  }
-
-  // ─── HUD ─────────────────────────────────────────────────────────────
-  private renderHUD(
-    chart: ChartData,
-    scoreState: { score: number; combo: number; maxCombo: number; perfects: number; goods: number; misses: number },
-    mode: GameMode,
-    gameTime: number,
-  ): void {
-    const ctx = this.ctx;
-
-    // Barra superior oscura con gradiente
-    const hudGrad = ctx.createLinearGradient(0, 0, 0, this.hudHeight);
-    hudGrad.addColorStop(0, 'rgba(10, 0, 20, 0.95)');
-    hudGrad.addColorStop(1, 'rgba(10, 0, 20, 0.7)');
-    ctx.fillStyle = hudGrad;
-    ctx.fillRect(0, 0, this.width, this.hudHeight);
-
-    // Línea de borde inferior del HUD
-    ctx.strokeStyle = 'rgba(68, 221, 255, 0.2)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, this.hudHeight);
-    ctx.lineTo(this.width, this.hudHeight);
-    ctx.stroke();
-
-    // Progreso de la canción (barra superior fina)
-    const progress = Math.min(1, gameTime / chart.duration);
-    ctx.fillStyle = `rgba(68, 221, 255, ${0.3 + Math.sin(this.bgTime * 2) * 0.1})`;
-    ctx.fillRect(0, 0, this.width * progress, 3);
-
-    // Score — grande y con sombra
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-    ctx.shadowBlur = 4;
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px "Courier New", monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${scoreState.score}`, 14, 28);
-    ctx.shadowBlur = 0;
-
-    // Combo con efecto de fuego si es alto
-    const combo = scoreState.combo;
-    if (combo > 0) {
-      const comboX = 14;
-      const comboY = 52;
-
-      if (combo >= 10) {
-        // Brillo/glow en el combo cuando es alto
-        ctx.shadowColor = combo >= 20 ? '#ff6600' : '#ffcc00';
-        ctx.shadowBlur = combo >= 30 ? 20 : 12;
-        ctx.fillStyle = combo >= 20 ? '#ff8800' : '#ffdd44';
-      } else {
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#aaaacc';
-      }
-      ctx.font = `bold ${combo >= 20 ? 16 : 13}px "Courier New", monospace`;
-      ctx.fillText(`🔥 ${combo}`, comboX, comboY);
-
-      // Multiplicador
-      if (combo >= 10) {
-        const mult = Math.min(4, 1 + Math.floor(combo / 10));
-        const multX = comboX + ctx.measureText(`🔥 ${combo} `).width;
-        ctx.fillStyle = `rgba(255, 200, 0, ${0.6 + Math.sin(this.bgTime * 4) * 0.4})`;
-        ctx.font = `bold ${10 + mult * 2}px "Courier New", monospace`;
-        ctx.fillText(`x${mult}`, multX, comboY);
-      }
-      ctx.shadowBlur = 0;
-    }
-
-    // Stats de precisión (derecha)
-    ctx.textAlign = 'right';
-    ctx.font = '10px "Courier New", monospace';
-    const statY = 22;
-    ctx.fillStyle = this.perfectColor;
-    ctx.fillText(`P:${scoreState.perfects}`, this.width - 14, statY);
-    ctx.fillStyle = this.goodColor;
-    ctx.fillText(`G:${scoreState.goods}`, this.width - 14, statY + 16);
-    ctx.fillStyle = this.missColor;
-    ctx.fillText(`M:${scoreState.misses}`, this.width - 14, statY + 32);
-
-    // Tiempo
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = '10px "Courier New", monospace';
-    const min = Math.floor(gameTime / 60);
-    const sec = Math.floor(gameTime % 60);
-    const totalMin = Math.floor(chart.duration / 60);
-    const totalSec = Math.floor(chart.duration % 60);
-    ctx.fillText(`${min}:${sec.toString().padStart(2, '0')} / ${totalMin}:${totalSec.toString().padStart(2, '0')}`,
-      this.width - 14, statY + 52);
-
-    ctx.textAlign = 'left';
-
-    // Info de canción (centro)
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '11px "Courier New", monospace';
-    ctx.fillText(chart.title, this.width / 2, 20);
-
-    const modeLabel = mode === 'chords' ? '🎸 ACORDES' : mode === 'notes' ? '🎵 NOTAS' : '🎸🎵 AMBOS';
-    ctx.fillStyle = 'rgba(150,150,200,0.5)';
-    ctx.font = '9px "Courier New", monospace';
-    ctx.fillText(`${modeLabel} · ${chart.artist}`, this.width / 2, 38);
-
-    // Rock meter (barra de vida)
-    const rockPct = Math.max(0, Math.min(1,
-      (scoreState.perfects * 2 + scoreState.goods) /
-      Math.max(1, (scoreState.perfects + scoreState.goods + scoreState.misses) * 2)
-    ));
-    const meterX = this.width / 2 - 60;
-    const meterY = 46;
-    const meterW = 120;
-    const meterH = 8;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.roundRect(meterX, meterY, meterW, meterH, 4);
-    ctx.fill();
-
-    const meterColor = rockPct > 0.6 ? '#00ff88' : rockPct > 0.3 ? '#ffdd00' : '#ff3355';
-    ctx.fillStyle = meterColor;
-    ctx.shadowColor = meterColor;
-    ctx.shadowBlur = 8;
-    ctx.roundRect(meterX + 1, meterY + 1, (meterW - 2) * rockPct, meterH - 2, 3);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.textAlign = 'left';
-  }
-
-  // ─── CARRIL DE NOTAS ───────────────────────────────────────────────
-  private renderLane(chart: ChartData, gameTime: number, mode: GameMode): void {
-    const ctx = this.ctx;
-    const laneTop = this.hudHeight;
-    const laneBottom = this.hitLineY;
-    const laneH = laneBottom - laneTop;
-
-    // Fondo del carril con gradiente
-    const laneGrad = ctx.createLinearGradient(0, laneTop, 0, laneBottom);
-    laneGrad.addColorStop(0, 'rgba(10, 5, 30, 0.9)');
-    laneGrad.addColorStop(0.5, 'rgba(15, 8, 35, 0.95)');
-    laneGrad.addColorStop(1, 'rgba(20, 10, 40, 1)');
-    ctx.fillStyle = laneGrad;
-    ctx.fillRect(0, laneTop, this.width, laneH);
-
-    // Pistas de colores (como los 5 botones de GH) basadas en octavas
-    const regionCount = 5;
-    const regionW = this.width / regionCount;
-    for (let i = 0; i < regionCount; i++) {
-      const c = this.laneColors[i];
-      const pulse = Math.sin(this.bgTime * 0.3 + i * 1.2) * 0.15 + 0.85;
-      ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${0.015 * pulse})`;
-      ctx.fillRect(i * regionW, laneTop, regionW, laneH);
-
-      // Línea divisoria vertical tenue
-      if (i > 0) {
-        ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, 0.08)`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(i * regionW, laneTop);
-        ctx.lineTo(i * regionW, laneBottom);
-        ctx.stroke();
-      }
-    }
-
-    // Líneas divisorias de octavas
-    for (let i = 0; i < this.keyCount; i++) {
-      const note = this.minNote + i;
-      if (note % 12 === 0) {
-        const key = this.keyLayout[i];
-        if (!key) continue;
-        ctx.strokeStyle = 'rgba(68, 221, 255, 0.06)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(key.x, laneTop);
-        ctx.lineTo(key.x, laneBottom);
-        ctx.stroke();
-      }
-    }
-
-    // Etiquetas de octava (más sutiles)
-    ctx.font = '7px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(80, 80, 120, 0.4)';
-    ctx.textAlign = 'center';
-    for (let i = 0; i < this.keyCount; i++) {
-      const note = this.minNote + i;
-      if (note % 12 === 0) {
-        const key = this.keyLayout[i];
-        if (!key) continue;
-        const octave = Math.floor(note / 12) - 1;
-        ctx.fillText(`C${octave}`, key.x + key.w / 2, laneBottom - 4);
-      }
-    }
-
-    // Velocidad scroll
-    const pxPerSec = laneH / this.noteScrollTime;
-
-    if (mode === 'notes' || mode === 'both') {
-      for (const n of chart.notes) this.renderNote(n, gameTime, laneBottom, pxPerSec);
-    }
-    if (mode === 'chords' || mode === 'both') {
-      for (const c of chart.chords) this.renderChord(c, gameTime, laneBottom, pxPerSec);
-    }
-
-    // Línea de impacto — estilo GH
-    const hitZoneY = laneBottom;
-    ctx.shadowColor = this.hitLineColor;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = this.hitZoneGlow;
-    ctx.fillRect(0, hitZoneY - 15, this.width, 30);
-    ctx.shadowBlur = 0;
-
-    // Línea principal
-    ctx.strokeStyle = this.hitLineColor;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = this.hitLineColor;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.moveTo(0, hitZoneY);
-    ctx.lineTo(this.width, hitZoneY);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Línea secundaria más arriba
-    ctx.strokeStyle = `rgba(68, 221, 255, 0.15)`;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 8]);
-    ctx.beginPath();
-    ctx.moveTo(0, hitZoneY - 30);
-    ctx.lineTo(this.width, hitZoneY - 30);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  /** Renderiza una gema individual en una posición y color dados */
-  private renderGem(
-    x: number, y: number, w: number, h: number,
-    color: { r: number; g: number; b: number },
-    alpha: number,
-    dist: number,
-  ): void {
-    const ctx = this.ctx;
-    const radius = Math.min(w / 2, h / 2, 8);
-    ctx.globalAlpha = alpha;
-
-    if (dist < 0.4) {
-      ctx.shadowColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
-      ctx.shadowBlur = 18;
-    }
-
-    const gemGrad = ctx.createLinearGradient(x, y, x + w, y + h);
-    gemGrad.addColorStop(0, `rgba(${Math.min(255, color.r + 100)}, ${Math.min(255, color.g + 100)}, ${Math.min(255, color.b + 100)}, 1)`);
-    gemGrad.addColorStop(0.5, `rgb(${color.r}, ${color.g}, ${color.b})`);
-    gemGrad.addColorStop(1, `rgba(${Math.max(0, color.r - 50)}, ${Math.max(0, color.g - 50)}, ${Math.max(0, color.b - 50)}, 1)`);
-    ctx.fillStyle = gemGrad;
-
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, radius);
-    ctx.fill();
-
-    // Brillo superior (specular)
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * alpha})`;
-    ctx.beginPath();
-    ctx.roundRect(x + 2, y + 2, w * 0.4, h * 0.3, 2);
-    ctx.fill();
-
-    // Borde
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 * alpha})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, radius);
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-  }
-
-  /** Renderiza una nota como gema brillante */
-  private renderNote(
-    noteEv: { time: number; note: number; duration: number },
-    gameTime: number,
-    laneBottom: number,
-    pxPerSec: number,
-  ): void {
-    const timeDiff = noteEv.time - gameTime;
-    if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
-
-    const y = laneBottom - timeDiff * pxPerSec;
-    const h = Math.min(Math.max(noteEv.duration * pxPerSec * 0.3, 12), 30);
-
-    const keyIdx = noteEv.note - this.minNote;
-    const key = this.keyLayout[keyIdx];
-    if (!key) return;
-
-    const noteW = key.isBlack ? key.w * 0.85 : key.w * 0.75;
-    const noteX = key.x + (key.w - noteW) / 2;
-    const dist = Math.abs(timeDiff);
-    const alpha = Math.max(0.3, 1 - dist / this.noteScrollTime);
-
-    // Color por región (como GH: 5 colores según octava)
-    const region = Math.floor((noteEv.note - this.minNote) / (this.keyCount / 5));
-    const lc = this.laneColors[Math.min(region, 4)];
-
-    this.renderGem(noteX, y, noteW, h, lc, alpha, dist);
-  }
-
-  /** Renderiza un acorde — cada nota del acorde usa renderGem con color acorde */
-  private renderChord(
-    chord: { time: number; notes: number[]; duration: number },
-    gameTime: number,
-    laneBottom: number,
-    pxPerSec: number,
-  ): void {
-    const timeDiff = chord.time - gameTime;
-    if (timeDiff < -0.5 || timeDiff > this.noteScrollTime + 0.5) return;
-
-    const y = laneBottom - timeDiff * pxPerSec;
-    const h = Math.min(Math.max(chord.duration * pxPerSec * 0.3, 14), 34);
-    const dist = Math.abs(timeDiff);
-    const alpha = Math.max(0.3, 1 - dist / this.noteScrollTime);
-
-    // Color acorde: púrpura/magenta vibrante
-    const chordColor = { r: 200, g: 70, b: 255 };
-
-    for (const midiNote of chord.notes) {
-      const keyIdx = midiNote - this.minNote;
-      const key = this.keyLayout[keyIdx];
-      if (!key) continue;
-
-      const noteW = key.isBlack ? key.w * 0.85 : key.w * 0.75;
-      const noteX = key.x + (key.w - noteW) / 2;
-
-      this.renderGem(noteX, y, noteW, h, chordColor, alpha, dist);
-    }
-  }
-
-  // ─── TECLADO DE PIANO ──────────────────────────────────────────────
-  private renderKeyboard(activeNotes: Set<number>): void {
-    const ctx = this.ctx;
-    const kbY = this.height - this.keyboardHeight;
-    const kbH = this.keyboardHeight - 5;
-
-    // Fondo con gradiente
-    const kbGrad = ctx.createLinearGradient(0, kbY, 0, kbY + kbH);
-    kbGrad.addColorStop(0, 'rgba(20, 10, 30, 0.95)');
-    kbGrad.addColorStop(1, 'rgba(10, 5, 20, 0.98)');
-    ctx.fillStyle = kbGrad;
-    ctx.fillRect(0, kbY - 2, this.width, kbH + 2);
-
-    // Línea de separación
-    ctx.strokeStyle = 'rgba(68, 221, 255, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, kbY);
-    ctx.lineTo(this.width, kbY);
-    ctx.stroke();
-
-    // Teclas blancas
-    for (let i = 0; i < this.keyCount; i++) {
-      const note = this.minNote + i;
-      const key = this.keyLayout[i];
-      if (!key || key.isBlack) continue;
-      const active = activeNotes.has(note);
-      const even = (Math.floor((note - 36) / 7)) % 2 === 0;
-      ctx.fillStyle = active
-        ? this.whiteKeyActiveColor
-        : even ? '#e8e8e2' : '#d0d0cc';
-      ctx.fillRect(key.x, kbY + 2, key.w, kbH);
-
-      // Borde de tecla
-      ctx.strokeStyle = active ? 'rgba(68, 221, 255, 0.6)' : 'rgba(150, 150, 150, 0.3)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(key.x, kbY + 2, key.w, kbH);
-
-      // Glow si activa
-      if (active) {
-        ctx.shadowColor = this.whiteKeyActiveColor;
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = `rgba(68, 221, 255, 0.15)`;
-        ctx.fillRect(key.x - 2, kbY + 2, key.w + 4, kbH);
-        ctx.shadowBlur = 0;
-      }
-    }
-
-    // Teclas negras encima
-    for (let i = 0; i < this.keyCount; i++) {
-      const note = this.minNote + i;
-      const key = this.keyLayout[i];
-      if (!key || !key.isBlack) continue;
-      const active = activeNotes.has(note);
-      ctx.fillStyle = active ? this.blackKeyActiveColor : '#1a1a28';
-      ctx.fillRect(key.x, kbY + 2, key.w, kbH * 0.6);
-
-      ctx.strokeStyle = active ? 'rgba(68, 221, 255, 0.5)' : 'rgba(20, 20, 30, 0.8)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(key.x, kbY + 2, key.w, kbH * 0.6);
-
-      // Brillo superior en teclas negras
-      if (!active) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.fillRect(key.x + 2, kbY + 3, key.w - 4, 2);
-      }
-
-      if (active) {
-        ctx.shadowColor = this.blackKeyActiveColor;
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = `rgba(68, 100, 200, 0.2)`;
-        ctx.fillRect(key.x - 2, kbY + 2, key.w + 4, kbH * 0.6);
-        ctx.shadowBlur = 0;
-      }
-    }
-  }
-
-  // ─── FEEDBACK DE HITS ──────────────────────────────────────────────
-  private renderHitFeedback(hitResults: { time: number; rating: string }[], _gameTime: number): void {
-    const ctx = this.ctx;
+  // ─── Eventos visuales ───────────────────────────────────────────────
+  flash(note: number, rating: Rating, part: Part): void {
     const now = performance.now() / 1000;
-    const recent = hitResults.filter(h => (now - h.time) < 2.0);
-
-    for (const hit of recent) {
-      const age = now - hit.time;
-      const alpha = Math.max(0, 1 - age / 2.0);
-
-      const isPerfect = hit.rating === 'perfect';
-      const isGood = hit.rating === 'good';
-      const color = isPerfect ? this.perfectColor : isGood ? this.goodColor : this.missColor;
-
-      const floatY = this.hitLineY - 60 + age * -50;
-
-      // Texto flotante grande como en Guitar Hero
-      ctx.globalAlpha = alpha;
-      ctx.textAlign = 'center';
-
-      let label: string;
-      let subtext: string;
-
-      if (isPerfect) {
-        label = '🔥 PERFECTO';
-        subtext = '+100';
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 20;
-        ctx.font = 'bold 32px "Courier New", monospace';
-        ctx.fillStyle = color;
-        ctx.fillText(label, this.width / 2, floatY);
-        ctx.shadowBlur = 10;
-        ctx.font = '16px "Courier New", monospace';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(subtext, this.width / 2, floatY + 28);
-
-        // Partículas en perfect
-        if (age < 0.3) {
-          this.spawnHitParticles(this.width / 2 + (Math.random() - 0.5) * 100, floatY, color);
-        }
-      } else if (isGood) {
-        label = '👍 BIEN';
-        subtext = '+50';
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 10;
-        ctx.font = 'bold 26px "Courier New", monospace';
-        ctx.fillStyle = color;
-        ctx.fillText(label, this.width / 2, floatY);
-        ctx.shadowBlur = 0;
-        ctx.font = '14px "Courier New", monospace';
-        ctx.fillStyle = '#ddd';
-        ctx.fillText(subtext, this.width / 2, floatY + 26);
-      } else {
-        label = '✗ MISS';
-        ctx.font = 'bold 24px "Courier New", monospace';
-        ctx.fillStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 8;
-        ctx.fillText(label, this.width / 2, floatY);
-        ctx.shadowBlur = 0;
-      }
-
-      ctx.shadowBlur = 0;
-      ctx.textAlign = 'left';
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  // ─── PARTÍCULAS ────────────────────────────────────────────────────
-  private spawnHitParticles(x: number, y: number, color: string): void {
-    for (let i = 0; i < 10; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 4;
-      this.hitParticles.push({
-        x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 2,
-        life: 30 + Math.random() * 20,
-        color,
-        size: 2 + Math.random() * 3,
+    this.judgements.set(note, { rating, born: now });
+    if (rating === 'miss') return;
+    this.beams.set(note, { part, born: now, good: rating === 'good' });
+    const key = this.layout.get(note);
+    if (!key) return;
+    const c = theme.part[part];
+    const cx = key.x + key.w / 2;
+    const n = rating === 'perfect' ? 14 : 8;
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.9;
+      const sp = 140 + Math.random() * 260;
+      this.sparks.push({
+        x: cx + (Math.random() - 0.5) * key.w * 0.6,
+        y: this.hitY,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 0,
+        max: 0.35 + Math.random() * 0.35,
+        color: Math.random() < 0.35 ? theme.amberHot : c.light,
+        size: 1.5 + Math.random() * 2.2,
       });
     }
   }
 
-  private renderHitParticles(): void {
+  announce(text: string, color: string = theme.amber): void {
+    this.announcement = { text, color, born: performance.now() / 1000 };
+  }
+
+  clearEffects(): void {
+    this.sparks = [];
+    this.judgements.clear();
+    this.beams.clear();
+    this.announcement = null;
+  }
+
+  // ─── Frame ──────────────────────────────────────────────────────────
+  render(f: Frame): void {
     const ctx = this.ctx;
-    const alive: typeof this.hitParticles = [];
+    const now = performance.now() / 1000;
+    const dt = Math.min(0.05, now - this.lastNow);
+    this.lastNow = now;
 
-    for (const p of this.hitParticles) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.1; // gravity
-      p.life--;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const hitY = this.hitY;
+    const pps = (hitY - LANE_TOP) / (this.fallTime * f.tempo); // píxeles por segundo de canción
+    const beatPhase = f.songTime >= -8 ? ((f.songTime / f.beat) % 1 + 1) % 1 : 0;
+    const beatPulse = Math.exp(-beatPhase * 5);
 
-      if (p.life <= 0) continue;
-      alive.push(p);
+    this.drawBackdrop(now, beatPulse, hitY);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, LANE_TOP, this.W, this.H - LANE_TOP);
+    ctx.clip();
+    this.drawKeyLanes(hitY, f);
+    this.drawBeatLines(f, hitY, pps);
+    this.drawNotes(f, hitY, pps);
+    this.drawBeams(now, hitY);
+    this.drawMarquee(now, beatPulse, hitY);
+    this.drawKeyboard(f, hitY);
+    this.drawSparks(dt);
+    this.drawJudgements(now, hitY);
+    this.drawOverlays(f, now, hitY);
+    ctx.restore();
+  }
 
-      const alpha = p.life / 50;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-      ctx.fill();
+  // ─── Fondo: pared LED de bailanta ───────────────────────────────────
+  private buildLedMask(): void {
+    const w = Math.max(1, Math.ceil(this.W));
+    const h = Math.max(1, Math.ceil(this.H));
+    this.ledMask.width = w;
+    this.ledMask.height = h;
+    this.ledTint.width = w;
+    this.ledTint.height = h;
+    const m = this.ledMask.getContext('2d')!;
+    m.clearRect(0, 0, w, h);
+    m.fillStyle = '#fff';
+    const pitch = 11;
+    for (let y = pitch / 2; y < h; y += pitch) {
+      for (let x = pitch / 2; x < w; x += pitch) {
+        m.beginPath();
+        m.arc(x, y, 1.6, 0, Math.PI * 2);
+        m.fill();
+      }
+    }
+  }
+
+  private drawBackdrop(now: number, pulse: number, hitY: number): void {
+    const ctx = this.ctx;
+    const { W, H } = this;
+    ctx.fillStyle = theme.night;
+    ctx.fillRect(0, 0, W, H);
+
+    // Manchas de color que se mueven por la pared LED. Se mueven lento,
+    // así que alcanza con recalcularlas cada 3 frames.
+    if (this.frame++ % 3 === 0) {
+      const tt = this.reducedMotion ? 0 : now;
+      const t = this.ledTint.getContext('2d')!;
+      t.globalCompositeOperation = 'source-over';
+      t.clearRect(0, 0, W, H);
+      const blobs: [number, number, number, string][] = [
+        [0.22 + Math.sin(tt * 0.21) * 0.18, 0.25 + Math.cos(tt * 0.17) * 0.12, 0.55, '255, 63, 160'],
+        [0.78 + Math.cos(tt * 0.19) * 0.16, 0.3 + Math.sin(tt * 0.23) * 0.14, 0.5, '46, 230, 255'],
+        [0.5 + Math.sin(tt * 0.13) * 0.3, 0.05 + Math.cos(tt * 0.11) * 0.05, 0.45, '255, 194, 58'],
+      ];
+      for (const [bx, by, br, rgb] of blobs) {
+        const g = t.createRadialGradient(bx * W, by * H, 0, bx * W, by * H, br * Math.max(W, H));
+        g.addColorStop(0, `rgba(${rgb}, 1)`);
+        g.addColorStop(1, `rgba(${rgb}, 0)`);
+        t.fillStyle = g;
+        t.fillRect(0, 0, W, H);
+      }
+      t.globalCompositeOperation = 'destination-in';
+      t.drawImage(this.ledMask, 0, 0);
     }
 
+    ctx.globalAlpha = 0.34 + pulse * 0.16;
+    ctx.drawImage(this.ledTint, 0, 0, W, H);
     ctx.globalAlpha = 1;
-    this.hitParticles = alive;
+
+    // Vidrio oscuro sobre la pista: más transparente arriba, más denso cerca de la línea
+    const g = ctx.createLinearGradient(0, 0, 0, hitY);
+    g.addColorStop(0, 'rgba(12, 4, 24, 0.5)');
+    g.addColorStop(0.55, 'rgba(12, 4, 24, 0.74)');
+    g.addColorStop(1, 'rgba(12, 4, 24, 0.9)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, hitY);
+  }
+
+  // ─── Guías por tecla ────────────────────────────────────────────────
+  private drawKeyLanes(hitY: number, f: Frame): void {
+    const ctx = this.ctx;
+    for (const k of this.layout.keys) {
+      if (k.isBlack) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+        ctx.fillRect(k.x, 0, k.w, hitY);
+      }
+      const part = f.guide.get(k.note);
+      if (part) {
+        const g = ctx.createLinearGradient(0, hitY - 220, 0, hitY);
+        g.addColorStop(0, `rgba(${theme.part[part].glow}, 0)`);
+        g.addColorStop(1, `rgba(${theme.part[part].glow}, 0.13)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(k.x, hitY - 220, k.w, 220);
+      }
+    }
+    for (const k of this.layout.keys) {
+      if (k.isBlack || k.note === this.layout.low) continue;
+      const p = pc(k.note);
+      ctx.fillStyle = p === 0 ? 'rgba(185, 162, 255, 0.2)' : p === 5 ? 'rgba(185, 162, 255, 0.11)' : 'rgba(185, 162, 255, 0.05)';
+      ctx.fillRect(Math.round(k.x) - 0.5, 0, 1, hitY);
+    }
+  }
+
+  private drawBeatLines(f: Frame, hitY: number, pps: number): void {
+    const ctx = this.ctx;
+    const first = Math.ceil(Math.max(0, f.songTime - 0.2) / f.beat);
+    const last = Math.floor((f.songTime + (hitY - LANE_TOP) / pps) / f.beat);
+    ctx.font = `600 10px ${theme.font.ui}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    for (let b = first; b <= last; b++) {
+      const t = b * f.beat;
+      const y = Math.round(hitY - (t - f.songTime) * pps) + 0.5;
+      if (y > hitY - 2) continue;
+      const bar = b % 4 === 0;
+      ctx.fillStyle = bar ? 'rgba(185, 162, 255, 0.2)' : 'rgba(185, 162, 255, 0.07)';
+      ctx.fillRect(0, y, this.W, 1);
+      if (bar) {
+        ctx.fillStyle = 'rgba(185, 162, 255, 0.45)';
+        ctx.fillText(`${b / 4 + 1}`, 6, y - 3);
+      }
+    }
+  }
+
+  // ─── Píldoras ───────────────────────────────────────────────────────
+  private drawNotes(f: Frame, hitY: number, pps: number): void {
+    const notes = f.notes;
+    // Búsqueda binaria del primer candidato (las notas vienen ordenadas por tiempo)
+    let lo = 0;
+    let hi = notes.length;
+    const from = f.songTime - 4;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (notes[mid].time < from) lo = mid + 1;
+      else hi = mid;
+    }
+    const horizon = f.songTime + (hitY - LANE_TOP) / pps + 0.2;
+    const whites: LiveNote[] = [];
+    const blacks: LiveNote[] = [];
+    for (let i = lo; i < notes.length; i++) {
+      const n = notes[i];
+      if (n.time > horizon) break;
+      if (n.time + n.duration < f.songTime - 1) continue;
+      if (n.state === 'hit' && !n.isLong) continue;
+      (isBlack(n.note) ? blacks : whites).push(n);
+    }
+    for (const n of whites) this.drawNote(n, f, hitY, pps);
+    for (const n of blacks) this.drawNote(n, f, hitY, pps);
+  }
+
+  private drawNote(n: LiveNote, f: Frame, hitY: number, pps: number): void {
+    const key = this.layout.get(n.note);
+    if (!key) return;
+    const yHead = hitY - (n.time - f.songTime) * pps;
+    const yTail = hitY - (n.time + n.duration - f.songTime) * pps;
+    const w = key.isBlack ? key.w * 0.92 : key.w * 0.8;
+    const x = key.x + (key.w - w) / 2;
+    const colors = theme.part[n.part];
+    const fill = key.isBlack ? colors.black : colors.white;
+    const gap = 3;
+
+    if (n.state === 'hit') {
+      // Nota larga ya tocada: queda la cola por encima de la línea
+      const top = yTail + gap / 2;
+      const bottom = Math.min(hitY, yHead);
+      if (bottom - top < 2) return;
+      const ctx = this.ctx;
+      const r = Math.min(w / 2, 8);
+      if (n.holding) {
+        ctx.fillStyle = `rgba(${colors.glow}, 0.25)`;
+        this.rr(x - 5, top - 5, w + 10, bottom - top + 10, r + 5);
+        ctx.fill();
+        ctx.fillStyle = fill;
+        this.rr(x, top, w, bottom - top, r);
+        ctx.fill();
+        ctx.fillStyle = colors.light;
+        ctx.fillRect(x + w / 2 - 2, top + 3, 4, Math.max(0, bottom - top - 3));
+        if (Math.random() < 0.6) {
+          this.sparks.push({
+            x: key.x + key.w / 2 + (Math.random() - 0.5) * w * 0.5, y: hitY, vx: (Math.random() - 0.5) * 80, vy: -90 - Math.random() * 140,
+            life: 0, max: 0.3 + Math.random() * 0.2, color: Math.random() < 0.5 ? colors.light : theme.amberHot, size: 1.2 + Math.random() * 1.5,
+          });
+        }
+      } else {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = fill;
+        this.rr(x, top, w, bottom - top, r);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      return;
+    }
+
+    const top = yTail + gap / 2;
+    const height = Math.max(yHead - top - gap / 2, Math.min(w * 1.05, 24));
+    const missed = n.state === 'missed';
+    const near = !missed && n.time - f.songTime < 0.3 * f.tempo;
+    this.drawPill(x, yHead - height, w, height, {
+      fill: missed ? theme.missGray : fill,
+      rim: missed ? '#5a4b6e' : key.isBlack ? colors.white : colors.light,
+      glow: near ? colors.glow : null,
+      long: n.isLong,
+      darkKey: key.isBlack,
+      label: missed ? '' : noteName(n.note, f.naming),
+      alpha: missed ? Math.max(0.15, 0.75 - Math.max(0, yHead - hitY) / 140) : 1,
+    });
+  }
+
+  private drawPill(
+    x: number, y: number, w: number, h: number,
+    o: { fill: string; rim: string; glow: string | null; long: boolean; darkKey: boolean; label: string; alpha: number },
+  ): void {
+    const ctx = this.ctx;
+    const r = Math.min(w / 2, 9);
+    const cap = Math.min(h, Math.max(18, w * 0.85));
+    ctx.globalAlpha = o.alpha;
+
+    if (o.glow) {
+      ctx.fillStyle = `rgba(${o.glow}, 0.22)`;
+      this.rr(x - 5, y - 5, w + 10, h + 10, r + 5);
+      ctx.fill();
+    }
+    // Contorno oscuro: separa píldoras vecinas
+    ctx.fillStyle = theme.nightDeep;
+    this.rr(x - 1.5, y - 1.5, w + 3, h + 3, r + 1.5);
+    ctx.fill();
+
+    if (o.long && h > cap + 4) {
+      // Cuerpo translúcido + hilo central: "esta se sostiene"
+      ctx.globalAlpha = o.alpha * 0.42;
+      ctx.fillStyle = o.fill;
+      this.rr(x, y, w, h, r);
+      ctx.fill();
+      ctx.globalAlpha = o.alpha;
+      ctx.fillStyle = o.rim;
+      ctx.fillRect(x + w / 2 - 1.5, y + 4, 3, h - cap - 2);
+      ctx.strokeStyle = o.rim;
+      ctx.lineWidth = 1.5;
+      this.rr(x + 0.75, y + 0.75, w - 1.5, h - 1.5, r);
+      ctx.stroke();
+    }
+
+    // Cabeza: el momento de tocar
+    const capY = y + h - cap;
+    ctx.fillStyle = o.fill;
+    this.rr(x, capY, w, cap, r);
+    ctx.fill();
+    // Brillo superior + borde
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    this.rr(x + 3, capY + 2.5, w - 6, Math.min(4, cap * 0.2), 2);
+    ctx.fill();
+    ctx.strokeStyle = o.rim;
+    ctx.lineWidth = o.darkKey ? 2 : 1.25;
+    this.rr(x + 0.75, capY + 0.75, w - 1.5, cap - 1.5, r);
+    ctx.stroke();
+
+    if (o.label && w >= 15) {
+      const size = Math.max(9, Math.min(15, w * 0.34));
+      ctx.font = `700 ${size}px ${theme.font.ui}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = o.darkKey ? '#ffffff' : '#1b0a2b';
+      ctx.fillText(o.label, x + w / 2, capY + cap / 2 + 1, w - 4);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ─── Línea de impacto: marquesina de bombitas ───────────────────────
+  private drawMarquee(now: number, pulse: number, hitY: number): void {
+    const ctx = this.ctx;
+    const W = this.W;
+    ctx.fillStyle = 'rgba(8, 2, 16, 0.92)';
+    ctx.fillRect(0, hitY - 4, W, 12);
+
+    // Línea con glow
+    ctx.fillStyle = `rgba(255, 194, 58, ${0.12 + pulse * 0.12})`;
+    ctx.fillRect(0, hitY - 6, W, 8);
+    ctx.fillStyle = theme.amber;
+    ctx.fillRect(0, hitY - 1, W, 2);
+
+    // Bombitas con chaser
+    const spacing = 14;
+    const step = this.reducedMotion ? 0 : Math.floor(now * 7);
+    const lit: [number, number][] = [];
+    for (const [note, b] of this.beams) {
+      const age = now - b.born;
+      const k = this.layout.get(note);
+      if (k && age < 0.35) lit.push([k.x, k.x + k.w]);
+    }
+    for (let i = 0, x = spacing / 2; x < W; i++, x += spacing) {
+      const on = (i + step) % 4 === 0;
+      const hot = lit.some(([a, b]) => x >= a && x <= b);
+      const y = hitY + 4;
+      if (hot) {
+        ctx.fillStyle = 'rgba(255, 241, 196, 0.35)';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = hot ? theme.amberHot : on ? theme.amber : `rgba(255, 194, 58, ${0.32 + pulse * 0.2})`;
+      ctx.beginPath();
+      ctx.arc(x, y, hot ? 2.6 : 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  private drawBeams(now: number, hitY: number): void {
+    const ctx = this.ctx;
+    for (const [note, b] of this.beams) {
+      const age = now - b.born;
+      if (age > 0.4) { this.beams.delete(note); continue; }
+      const k = this.layout.get(note);
+      if (!k) continue;
+      const a = (1 - age / 0.4) * 0.55;
+      const h = 170;
+      const g = ctx.createLinearGradient(0, hitY - h, 0, hitY);
+      const rgb = b.good ? '185, 162, 255' : theme.part[b.part].glow;
+      g.addColorStop(0, `rgba(${rgb}, 0)`);
+      g.addColorStop(1, `rgba(${rgb}, ${a})`);
+      ctx.fillStyle = g;
+      const spread = 6 * (1 - age / 0.4);
+      ctx.fillRect(k.x - spread, hitY - h, k.w + spread * 2, h);
+    }
+  }
+
+  // ─── Teclado ────────────────────────────────────────────────────────
+  private drawKeyboard(f: Frame, hitY: number): void {
+    const ctx = this.ctx;
+    const top = hitY + 8;
+    const h = this.H - top;
+    ctx.fillStyle = '#07020e';
+    ctx.fillRect(0, top, this.W, h);
+
+    for (const k of this.layout.keys) if (!k.isBlack) this.drawWhiteKey(k, top, h, f);
+    for (const k of this.layout.keys) if (k.isBlack) this.drawBlackKey(k, top, h * 0.62, f);
+
+    // Sombra del borde superior (el teclado "entra" bajo la marquesina)
+    const g = ctx.createLinearGradient(0, top, 0, top + 10);
+    g.addColorStop(0, 'rgba(7, 2, 14, 0.75)');
+    g.addColorStop(1, 'rgba(7, 2, 14, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, top, this.W, 10);
+  }
+
+  private drawWhiteKey(k: KeyRect, top: number, h: number, f: Frame): void {
+    const ctx = this.ctx;
+    const pressed = f.pressed.has(k.note);
+    const pressedPart = f.pressed.get(k.note) ?? null;
+    const guide = f.guide.get(k.note);
+    const x = k.x + 1;
+    const w = k.w - 2;
+    const depth = pressed ? 2 : 0;
+
+    const g = ctx.createLinearGradient(0, top, 0, top + h);
+    if (pressed && pressedPart) {
+      g.addColorStop(0, theme.part[pressedPart].light);
+      g.addColorStop(1, theme.part[pressedPart].white);
+    } else if (pressed) {
+      g.addColorStop(0, '#d9cceb');
+      g.addColorStop(1, '#bfaed6');
+    } else {
+      g.addColorStop(0, '#fbf6ff');
+      g.addColorStop(0.85, '#eee5f7');
+      g.addColorStop(1, '#d9cde6');
+    }
+    ctx.fillStyle = g;
+    this.rrBottom(x, top + depth, w, h - 3 - depth, Math.min(6, w * 0.15));
+    ctx.fill();
+
+    if (guide && !pressed) {
+      ctx.fillStyle = `rgba(${theme.part[guide].glow}, 0.38)`;
+      this.rrBottom(x, top, w, h - 3, Math.min(6, w * 0.15));
+      ctx.fill();
+      ctx.fillStyle = theme.part[guide].white;
+      ctx.fillRect(x, top, w, 4);
+    }
+
+    // Nombre de la nota
+    if (f.naming !== 'none' && w >= 14) {
+      const label = noteName(k.note, f.naming);
+      const size = Math.max(9, Math.min(14, w * 0.3));
+      ctx.font = `${pc(k.note) === 0 ? 800 : 600} ${size}px ${theme.font.ui}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = pressed ? '#2a1640' : pc(k.note) === 0 ? '#4a3463' : '#8a78a3';
+      ctx.fillText(label, x + w / 2, top + h - 12 + depth, w - 2);
+    }
+    if (k.note === MIDDLE_C) {
+      ctx.fillStyle = theme.amber;
+      ctx.beginPath();
+      ctx.arc(x + w / 2, top + h - 12 - Math.max(9, Math.min(14, w * 0.3)) - 6 + depth, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  private drawBlackKey(k: KeyRect, top: number, h: number, f: Frame): void {
+    const ctx = this.ctx;
+    const pressed = f.pressed.has(k.note);
+    const pressedPart = f.pressed.get(k.note) ?? null;
+    const guide = f.guide.get(k.note);
+    const depth = pressed ? 2 : 0;
+
+    const g = ctx.createLinearGradient(0, top, 0, top + h);
+    if (pressed && pressedPart) {
+      g.addColorStop(0, theme.part[pressedPart].white);
+      g.addColorStop(1, theme.part[pressedPart].black);
+    } else if (pressed) {
+      g.addColorStop(0, '#4b3a60');
+      g.addColorStop(1, '#2c2040');
+    } else if (guide) {
+      g.addColorStop(0, theme.part[guide].black);
+      g.addColorStop(1, '#1d1230');
+    } else {
+      g.addColorStop(0, '#2c1f3d');
+      g.addColorStop(1, '#130a1f');
+    }
+    ctx.fillStyle = '#05010a';
+    this.rrBottom(k.x - 1, top, k.w + 2, h + 1, 4);
+    ctx.fill();
+    ctx.fillStyle = g;
+    this.rrBottom(k.x, top + depth, k.w, h - depth - 2, 3.5);
+    ctx.fill();
+    // Bisel
+    ctx.fillStyle = pressed ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.1)';
+    ctx.fillRect(k.x + 2, top + h - 10 + depth, k.w - 4, 3);
+  }
+
+  // ─── Efectos ────────────────────────────────────────────────────────
+  private drawSparks(dt: number): void {
+    const ctx = this.ctx;
+    const alive: Spark[] = [];
+    for (const s of this.sparks) {
+      s.life += dt;
+      if (s.life >= s.max) continue;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.vy += 420 * dt;
+      alive.push(s);
+      const a = 1 - s.life / s.max;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size * (0.5 + a * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    this.sparks = alive.length > 600 ? alive.slice(-600) : alive;
+  }
+
+  private drawJudgements(now: number, hitY: number): void {
+    const ctx = this.ctx;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineJoin = 'round';
+    for (const [note, j] of this.judgements) {
+      const age = now - j.born;
+      const life = 0.5;
+      if (age > life || j.rating === 'good') { this.judgements.delete(note); continue; }
+      const k = this.layout.get(note);
+      if (!k) continue;
+      const a = 1 - age / life;
+      const y = hitY - 20 - age * 50;
+      const cx = k.x + k.w / 2;
+      ctx.globalAlpha = a;
+      if (j.rating === 'miss') {
+        ctx.font = `800 18px ${theme.font.ui}`;
+        ctx.strokeStyle = 'rgba(8, 2, 16, 0.85)';
+        ctx.lineWidth = 4;
+        ctx.strokeText('×', cx, y);
+        ctx.fillStyle = theme.missRed;
+        ctx.fillText('×', cx, y);
+      } else {
+        const size = Math.max(11, Math.min(15, this.layout.whiteW * 0.26));
+        ctx.font = `${size}px ${theme.font.display}`;
+        ctx.strokeStyle = 'rgba(8, 2, 16, 0.9)';
+        ctx.lineWidth = 4;
+        ctx.strokeText('¡Justo!', cx, y);
+        ctx.fillStyle = theme.amber;
+        ctx.fillText('¡Justo!', cx, y);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  private drawOverlays(f: Frame, now: number, hitY: number): void {
+    const ctx = this.ctx;
+    const cx = this.W / 2;
+
+    if (f.countIn) {
+      const { label, phase } = f.countIn;
+      const scale = 1.25 - Math.min(1, phase * 3) * 0.25;
+      const size = Math.min(150, this.W * 0.12) * scale;
+      ctx.globalAlpha = Math.max(0, 1 - phase * 0.85);
+      ctx.font = `${size}px ${theme.font.display}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255, 63, 160, 0.55)';
+      ctx.fillText(label, cx + 5, LANE_TOP + (hitY - LANE_TOP) * 0.42 + 5);
+      ctx.fillStyle = theme.amber;
+      ctx.fillText(label, cx, LANE_TOP + (hitY - LANE_TOP) * 0.42);
+      ctx.globalAlpha = 1;
+    }
+
+    if (this.announcement) {
+      const age = now - this.announcement.born;
+      if (age > 0.9) this.announcement = null;
+      else {
+        const pop = 1 + Math.max(0, 0.15 - age) * 2;
+        ctx.globalAlpha = Math.min(1, (0.9 - age) * 3);
+        ctx.font = `${Math.round(54 * pop)}px ${theme.font.display}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(8, 2, 16, 0.7)';
+        ctx.fillText(this.announcement.text, cx + 3, LANE_TOP + (hitY - LANE_TOP) * 0.3 + 3);
+        ctx.fillStyle = this.announcement.color;
+        ctx.fillText(this.announcement.text, cx, LANE_TOP + (hitY - LANE_TOP) * 0.3);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    if (f.waiting > 1.2) {
+      ctx.globalAlpha = Math.min(1, (f.waiting - 1.2) * 2);
+      ctx.font = `600 16px ${theme.font.ui}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = theme.ink;
+      ctx.fillText('Tocá las teclas que brillan', cx, hitY - 70);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ─── Helpers de forma ───────────────────────────────────────────────
+  private rr(x: number, y: number, w: number, h: number, r: number): void {
+    const ctx = this.ctx;
+    const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, rad);
+  }
+
+  private rrBottom(x: number, y: number, w: number, h: number, r: number): void {
+    const ctx = this.ctx;
+    const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, [0, 0, rad, rad]);
   }
 }

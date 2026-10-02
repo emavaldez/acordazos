@@ -25,19 +25,22 @@ export interface ChartData {
   artist: string;
   bpm: number;
   duration: number; // segundos
-  /** Path al archivo de audio (mezcla completa) */
+  /** Path al archivo de audio (mezcla completa). Vacío = se sintetiza. */
   audioFile: string;
-  /** Punteos individuales */
+  /** Melodía (punteo) */
   notes: NoteEvent[];
   /** Acordes */
   chords: ChordEvent[];
 }
 
+/** Qué parte toca el jugador. 'notes' = melodía. */
 export type GameMode = 'chords' | 'notes' | 'both';
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export type HitRating = 'perfect' | 'good' | 'miss' | 'none';
+
+export type Part = 'melody' | 'chords';
 
 export interface HitResult {
   rating: HitRating;
@@ -57,4 +60,29 @@ export interface GameState {
   goods: number;
   misses: number;
   totalNotes: number;
+}
+
+/** Una nota jugable, ya filtrada por modo y dificultad. */
+export interface PlayNote {
+  id: number;
+  part: Part;
+  note: number;
+  /** Segundos de canción */
+  time: number;
+  duration: number;
+  /** Nota larga: hay que mantenerla apretada para sumar */
+  isLong: boolean;
+}
+
+/** Resumen liviano de una canción (para el menú, sin bajar el chart). */
+export interface SongMeta {
+  name: string;
+  title: string;
+  artist: string;
+  duration: number;
+  bpm: number;
+  melodyCount: number;
+  chordCount: number;
+  /** Notas de melodía por segundo — sirve para estimar intensidad */
+  density: number;
 }

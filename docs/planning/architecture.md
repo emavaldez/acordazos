@@ -22,33 +22,31 @@
 ```
 acordazos/
 ├── src/
-│   ├── game/                # Logica del juego
-│   │   ├── Game.ts          # Game loop, orquestador principal
-│   │   ├── NoteRenderer.ts  # Rendering Canvas (carril, notas, teclado, HUD)
-│   │   ├── HitDetection.ts  # Hit detection con ventanas de tolerancia
-│   │   ├── Score.ts         # Scoring y combo tracking
-│   │   ├── SongLoader.ts    # Carga de charts JSON desde disco
-│   │   └── Chart.ts         # Chart hardcodeado de test
-│   ├── midi/                # MIDI input
-│   │   └── MIDIManager.ts   # WebMIDI API wrapper
-│   ├── audio/               # Audio output
-│   │   └── AudioManager.ts  # Web Audio API, playback + sintesis
-│   ├── ui/                  # UI overlays
-│   │   └── UIManager.ts    # Menu, results, MIDI error (HTML overlays)
-│   ├── __tests__/           # Tests (vitest)
-│   │   ├── HitDetection.test.ts
-│   │   ├── Score.test.ts
-│   │   └── Chart.test.ts
-│   ├── types.ts             # Tipos compartidos
-│   ├── style.css            # Estilos de UI overlays
-│   └── main.ts              # Bootstrap
-├── scripts/                 # Pipeline de audio (Python)
-│   └── prepare_song.py      # YouTube -> stems -> chart JSON
-├── charts/                  # Charts JSON generados
-├── KANBAN.md                # Sprint tracking (legacy)
-├── vite.config.ts
-├── tsconfig.json
-└── package.json
+│   ├── game/
+│   │   ├── Game.ts            # Orquestador: fases, reloj, entrada, práctica, sostenidos
+│   │   ├── Arrangement.ts     # Chart → notas jugables (modo, dificultad, rango, notas largas)
+│   │   ├── KeyboardLayout.ts  # Geometría del teclado y rango ajustado al tema
+│   │   ├── NoteRenderer.ts    # Canvas: pared LED, píldoras, marquesina, teclado, efectos
+│   │   ├── HitDetection.ts    # Ventanas de acierto
+│   │   ├── Score.ts           # Puntaje, multiplicador, sostenidos, tendencia de tiempo
+│   │   ├── SongLoader.ts      # Índice de temas + charts (con caché)
+│   │   └── Chart.ts           # Chart de prueba
+│   ├── audio/AudioManager.ts  # Scheduler con lookahead, synth, clics de cuenta, MP3 opcional
+│   ├── midi/MIDIManager.ts    # WebMIDI: todas las entradas, reconexión en caliente
+│   ├── music/notes.ts         # Nombres de notas, teclas negras, rango del E333
+│   ├── ui/
+│   │   ├── UIManager.ts       # Menú, ajustes, HUD, pausa, resultados, avisos (HTML)
+│   │   └── Settings.ts        # Ajustes y récords en localStorage
+│   ├── theme.ts               # Paleta "Neón de bailanta" (espejo de las variables CSS)
+│   ├── __tests__/             # vitest
+│   ├── types.ts
+│   ├── style.css
+│   └── main.ts
+├── scripts/
+│   ├── build_song_index.mjs   # public/songs/index.json con metadatos (npm run songs:index)
+│   └── process_pdf.py …       # Pipeline de partituras (Audiveris)
+├── public/songs/<tema>/chart.json
+└── docs/planning/
 ```
 
 ---
@@ -57,59 +55,29 @@ acordazos/
 
 ### Game (game/Game.ts)
 
-Orquestador principal. Maneja:
-- Game loop (requestAnimationFrame)
-- Estado: menu, playing, paused, results
-- Coordinacion entre MIDI input, hit detection, scoring, rendering, audio
-- Carga de canciones
-- Compensacion de latencia
+- Fases: `menu → playing ⇄ paused → resuming → playing → results`.
+- El reloj de canción avanza con el delta real × tempo. El audio se agenda contra ese reloj, así que tempo, pausa y modo práctica nunca se desfasan.
+- Modo práctica: cuando la próxima nota pendiente llega a la línea, el reloj se frena hasta que se tocan todas las teclas de ese golpe.
+- Entrada: cada Note On busca la nota pendiente más vieja de esa tecla dentro de la ventana (evita que un toque tarde le robe la nota a la siguiente repetida). Note Off corta los sostenidos.
+- La compensación de latencia corre el tiempo del toque; los resultados sugieren un valor con el desvío promedio.
 
-**Refactor realizado:** UIManager extraido a modulo separado (menu, results, MIDI error).
+### Arrangement (game/Arrangement.ts)
+
+- Fácil/Normal simplifican la melodía por grilla musical (negras / corcheas, respetando síncopas aisladas) y los acordes (bajo solo / hasta 3 notas).
+- Notas fuera de las 61 teclas se pliegan por octavas. En "Las dos", si los acordes caen sobre la melodía se bajan una octava (mano izquierda).
+- Notas repetidas en la misma tecla se recortan para no superponerse. `isLong` = más larga que una negra y cuarto: se sostiene.
 
 ### NoteRenderer (game/NoteRenderer.ts)
 
-Rendering procedural en Canvas 2D:
-- Fondo con gradiente animado
-- Carril de notas (horizontal, derecha a izquierda)
-- Notas con glow y colores por rating
-- Teclado piano al pie con glow en teclas activas
-- HUD: puntaje, combo, accuracy
-- Particulas de hit
-- Vignette de bordes
-
-### HitDetection (game/HitDetection.ts)
-
-- Ventana de tolerancia configurable (perfect=80ms, good=180ms)
-- detect(): busca el match mas cercano en el array de notas esperadas
-- isExpired(): verifica si una nota ya paso la ventana
-- Skips notas ya hit y notas con diferente numero
-
-### Score (game/Score.ts)
-
-- evaluate(): clasifica hit (perfect/good/miss) y suma puntos
-- Combo tracking con maxCombo
-- registerMiss() para notas expiradas
-- reset() entre canciones
-
-### MIDI (midi/MIDIManager.ts)
-
-- WebMIDI API wrapper
-- init(): solicita acceso a MIDI
-- onNote/onNoteRelease: callbacks para Note On/Off
-- getDeviceName(): nombre del dispositivo conectado
+- Canvas con devicePixelRatio. La pista arranca debajo del HUD (`LANE_TOP` = `--hud-h`).
+- Píldoras con largo real; cabeza sólida con el nombre de la nota; las largas tienen cuerpo translúcido con hilo central.
+- Guías por tecla, líneas de pulso y compás, marquesina de bombitas como línea de impacto, teclado con nombres y tecla guía iluminada.
 
 ### Audio (audio/AudioManager.ts)
 
-- Web Audio API
-- Playback de MP3/WAV
-- Sintesis con oscillators para canciones sin audio
-- init(), play(), pause(), stop()
-
-### UI (ui/UIManager.ts)
-
-- HTML overlays para menu, results, MIDI error
-- Callbacks para comunicacion con Game
-- Sin estado propio (stateless, recibe todo por parametros)
+- Agenda ~180 ms por delante del reloj del juego (lookahead), con `outputLatency` compensada.
+- Melodía: lead cuadrada + sierra filtrada con vibrato. Acordes: colchón de triangular. Cuenta de entrada con clics.
+- Si el chart trae `audioFile`, reproduce el MP3 con `playbackRate = tempo` y lo resincroniza.
 
 ---
 
@@ -157,11 +125,12 @@ YouTube URL
 ## Testing Strategy
 
 - **Framework:** vitest
-- **Coverage:** 49 tests, 3 archivos
+- **Coverage:** 74 tests, 4 archivos
 - **Areas cubiertas:**
-  - HitDetection: ventanas perfect/good/miss, skip hit notes, expired (14 tests)
-  - Score: evaluate, combo, miss, reset, scoring math (17 tests)
-  - Chart: estructura, validacion, consistencia (18 tests)
+  - HitDetection: ventanas perfect/good/miss, skip hit notes, expired
+  - Score: evaluate, combo, miss, reset, multiplicador, sostenidos, tendencia de tiempo
+  - Chart: estructura, validacion, consistencia
+  - Arrangement / KeyboardLayout / notas / títulos: dificultad, rango, octavas, recortes
 
 ---
 
@@ -187,8 +156,8 @@ YouTube URL
 
 ## Known Technical Debt
 
-1. **Game.ts (470 lineas)**: UIManager extraido. Futuro: extraer GameLoop, InputHandler.
-2. **NoteRenderer.ts (500+ lineas)**: Rendering logic mezclada con game logic. Considerar separar.
+1. **Game.ts**: concentra reloj, entrada y práctica. Si crece, extraer InputHandler.
+2. **NoteRenderer.ts**: un solo archivo de dibujo (~650 líneas); se podría separar teclado y efectos.
 3. **Sin CI/CD**: No hay GitHub Actions.
 4. **Sin coverage report**: vitest no tiene coverage configurado.
 5. **Pipeline Python separado**: scripts/ no esta integrado con el build de Vite.

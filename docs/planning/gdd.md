@@ -43,7 +43,7 @@ Acordazos es un juego de ritmo tipo Guitar Hero donde el instrumento es un tecla
 3. Ajustar velocidad y latencia si hace falta
 4. Empezar: tema suena, notas caen horizontalmente
 5. Tocar cada nota en el teclado MIDI cuando llega a la zona de impacto
-6. Recibir feedback: perfect (verde), good (amarillo), miss (rojo)
+6. Recibir feedback: justo (ámbar), bien (lila), pifiada (×)
 7. Combo se acumula con hits consecutivos, se resetea en miss
 8. Al terminar: pantalla de resultados con puntaje, estrellas, accuracy
 
@@ -82,35 +82,41 @@ Acordazos es un juego de ritmo tipo Guitar Hero donde el instrumento es un tecla
 
 ### Hit Windows
 
-- **Perfect**: ±80ms del beat esperado (100 puntos)
-- **Good**: ±180ms del beat esperado (50 puntos)
-- **Miss**: fuera de ventana (0 puntos, reset combo)
+| Dificultad | Justo | Bien |
+|---|---|---|
+| Fácil | ±100 ms | ±220 ms |
+| Normal | ±80 ms | ±180 ms |
+| Difícil | ±60 ms | ±140 ms |
+
+Fuera de la ventana: pifiada (corta la racha). Teclas de más no castigan.
 
 ### Scoring
 
-- Perfect = 100 puntos
-- Good = 50 puntos
-- Miss = 0 puntos
-- Combo: se acumula con hits consecutivos
-- Max combo: se trackea por cancion
+- Justo = 100, Bien = 50, por el multiplicador.
+- Multiplicador x1 → x4: sube cada 10 aciertos seguidos.
+- Notas largas: 100 puntos por segundo sostenido (por el multiplicador). Soltar antes corta la suma, no es pifiada.
+- Estrellas por % de notas acertadas: 95 / 85 / 70 / 50.
+- Récord local por tema, modo y dificultad.
 
 ### Difficulty Levels
 
-- **Facil**: notas espaciadas, solo acordes basicos, ventana ampliada
-- **Normal**: notas normales, acordes + punteos, ventana estandar
-- **Dificil**: notas densas, punteos rapidos, ventana reducida
+- **Fácil**: melodía en negras (una nota por golpe, la más aguda), acordes solo con el bajo.
+- **Normal**: melodía en corcheas, acordes de hasta 3 notas.
+- **Difícil**: todo el chart.
+- En las tres se conservan las síncopas aisladas para no dejar huecos en la frase.
 
-### Speed Control
+### Tempo
 
-- 0.5x: notas viajan a mitad de velocidad (principiantes)
-- 1x: velocidad normal
-- 2x: doble velocidad (avanzado)
+- 40 % a 150 % desde el menú, o con − / + y las teclas [ ] durante el tema. El audio sigue al tempo.
+
+### Práctica
+
+- Las notas se frenan en la línea hasta que tocás todas las del golpe. Sin puntaje ni pifiadas; al final muestra notas, tiempo y cuántas veces esperó.
 
 ### Latency Compensation
 
-- Offset ajustable de -500ms a +500ms en pasos de 50ms
-- Negativo: notas llegan antes (compensa audio que tarda)
-- Positivo: notas llegan despues (compensa MIDI que tarda)
+- Ajuste de −250 a +350 ms. Positivo = tu toque se toma como más temprano.
+- Al terminar un tema se muestra el desvío promedio y un botón para compensarlo.
 
 ---
 
@@ -135,12 +141,14 @@ Acordazos es un juego de ritmo tipo Guitar Hero donde el instrumento es un tecla
 
 ## Art and Audio Direction
 
-### Art Style
+### Art Style — "Neón de bailanta"
 
-- Estetica synthwave/neon: fondo oscuro, notas con glow, teclas iluminadas
-- Carril horizontal con notas que viajan de derecha a izquierda
-- Teclado piano renderizado al pie del carril con glow en teclas activas
-- Particulas de hit en la zona de impacto
+- Noche violeta (#140827) con pared de LEDs de fondo; fucsia (#ff3fa0) para acordes, cian (#2ee6ff) para melodía, ámbar (#ffc23a) para la marquesina y los aciertos.
+- Notas que caen verticalmente sobre el teclado (estilo piano roll), con el largo real de la nota y su nombre (Do Re Mi / C D E).
+- Tecla negra = tono más oscuro de la misma parte, con borde brillante.
+- Línea de impacto como marquesina de bombitas; las bombitas sobre la tecla se encienden al acertar.
+- Teclado ajustado al rango del tema (o las 61 teclas), con mini-mapa del E333 en el HUD.
+- Tipografías: Bungee (carteles, puntaje) y Archivo de Omnibus-Type (interfaz), empaquetadas con @fontsource.
 
 ### Audio and Music
 
@@ -209,7 +217,7 @@ Acordazos es un juego de ritmo tipo Guitar Hero donde el instrumento es un tecla
 
 ### Technical Metrics
 
-- 49 tests pasando (3 archivos)
+- 74 tests pasando (4 archivos)
 - 0 tests failing
 - Build sin errores TypeScript
 - 112 canciones procesadas
@@ -227,7 +235,7 @@ Acordazos es un juego de ritmo tipo Guitar Hero donde el instrumento es un tecla
 
 - Multijugador online
 - Leaderboards
-- Modo practica con seccion A/B
+- Loop de sección A/B (el modo práctica existe, pero sin loop)
 - Export/import de charts manuales
 - Mobile nativo (solo web)
 - VR/AR

@@ -3,18 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🎸 Acordazos — Guitar Hero con teclado MIDI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#140827" />
+    <meta name="description" content="Acordazos: tocá cumbias en tu teclado MIDI, nota por nota." />
+    <title>Acordazos</title>
   </head>
   <body>
-    <div id="app">
-      <canvas id="game-canvas"></canvas>
-    </div>
-    <script>
-      window.__errors = [];
-      window.addEventListener('error', e => window.__errors.push(e.message));
-      window.addEventListener('unhandledrejection', e => window.__errors.push('REJ: ' + e.reason));
-    </script>
+    <canvas id="game-canvas" aria-label="Pista de notas"></canvas>
+    <div id="ui"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
